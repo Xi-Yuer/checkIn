@@ -1,0 +1,39 @@
+{
+  "configurations" : [
+    {
+      "id" : "4BBF9DB4-697C-4CF9-B14C-B87EA9BA2344",
+      "name" : "Default",
+      "options" : {
+        "language" : "zh-Hans",
+        "region" : "CN"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:checkIn.xcodeproj",
+      "identifier" : "1E1CE1CA303443700047E36E",
+      "name" : "checkIn"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:checkIn.xcodeproj",
+        "identifier" : "7A0000000000000000000101",
+        "name" : "checkInTests"
+      }
+    },
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:checkIn.xcodeproj",
+        "identifier" : "7A0000000000000000000102",
+        "name" : "checkInUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

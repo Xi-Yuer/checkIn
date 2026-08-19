@@ -1,0 +1,12 @@
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# Image generation scratch output
+tmp/imagegen/
+output/imagegen/
+
+# macOS
+.DS_Store
