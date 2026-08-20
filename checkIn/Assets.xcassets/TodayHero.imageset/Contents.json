@@ -1,12 +1,15 @@
 {
   "images" : [
     {
-      "filename" : "1D179AFE-9245-4B4C-95B2-C21D1E5D3548.png",
+      "filename" : "TodayHero.png",
       "idiom" : "universal"
     }
   ],
   "info" : {
     "author" : "xcode",
     "version" : 1
+  },
+  "properties" : {
+    "preserves-vector-representation" : false
   }
 }
