@@ -1,3 +1,4 @@
+import ACarousel
 import SwiftUI
 
 struct OnboardingView: View {
@@ -10,32 +11,31 @@ struct OnboardingView: View {
     private let pages = OnboardingPage.all
 
     var body: some View {
-        ZStack {
-            TabView(selection: $selectedPage) {
-                ForEach(pages) { page in
-                    OnboardingPageView(page: page)
-                        .tag(page.id)
-                }
+        ZStack(alignment: .bottom) {
+            ACarousel(
+                pages,
+                index: $selectedPage,
+                spacing: 0,
+                headspace: 0,
+                sidesScaling: 1,
+                isWrap: false
+            ) { page in
+                OnboardingPageView(page: page)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea()
 
-            VStack {
-                Spacer()
-                Button(action: advance) {
-                    Text(currentPage.buttonTitle)
-                }
-                .buttonStyle(
-                    OnboardingActionButtonStyle(
-                        fill: currentPage.buttonFill,
-                        foreground: currentPage.buttonForeground
-                    )
-                )
-                .accessibilityIdentifier("onboarding.primaryAction")
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
+            Button(action: advance) {
+                Text(currentPage.buttonTitle)
             }
-            .ignoresSafeArea(.container, edges: .bottom)
+            .buttonStyle(
+                OnboardingActionButtonStyle(
+                    fill: currentPage.buttonFill,
+                    foreground: currentPage.buttonForeground
+                )
+            )
+            .accessibilityIdentifier("onboarding.primaryAction")
+            .padding(.horizontal, 28)
+            .padding(.bottom, 28)
         }
         .background(currentPage.fallbackBackground.ignoresSafeArea())
         .animation(reduceMotion ? nil : .easeOut(duration: 0.28), value: selectedPage)
@@ -128,6 +128,7 @@ private struct OnboardingPageView: View {
         .ignoresSafeArea()
         .accessibilityElement()
         .accessibilityLabel(page.accessibilityLabel)
+        .accessibilityIdentifier("onboarding.page.\(page.id)")
     }
 }
 

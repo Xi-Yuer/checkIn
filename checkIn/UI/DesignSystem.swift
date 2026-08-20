@@ -4,6 +4,7 @@ import UIKit
 enum PlanetTheme {
     static let violet = Color(hex: "#7C3AED")
     static let lavender = Color(hex: "#A788FA")
+    static let softViolet = Color(hex: "#EEE7FF")
     static let gold = Color(hex: "#FDBA74")
     static let yellow = Color(hex: "#FDE68A")
     static let mint = Color(hex: "#34D399")
@@ -19,8 +20,12 @@ enum PlanetTheme {
         dark: UIColor(red: 0.105, green: 0.086, blue: 0.190, alpha: 1)
     )
     static let elevatedSurface = Color.dynamic(
-        light: UIColor(red: 0.945, green: 0.925, blue: 0.992, alpha: 1),
+        light: UIColor(red: 0.958, green: 0.944, blue: 0.992, alpha: 1),
         dark: UIColor(red: 0.153, green: 0.122, blue: 0.258, alpha: 1)
+    )
+    static let mutedSurface = Color.dynamic(
+        light: UIColor(red: 0.976, green: 0.968, blue: 0.996, alpha: 1),
+        dark: UIColor(red: 0.124, green: 0.102, blue: 0.216, alpha: 1)
     )
     static let primaryText = Color.dynamic(
         light: UIColor(red: 0.105, green: 0.078, blue: 0.190, alpha: 1),
@@ -59,7 +64,11 @@ extension Color {
 struct PlanetBackground: View {
     var body: some View {
         ZStack {
-            PlanetTheme.background
+            LinearGradient(
+                colors: [PlanetTheme.surface, PlanetTheme.background],
+                startPoint: .top,
+                endPoint: .bottom
+            )
             Starfield(
                 primaryColor: PlanetTheme.lavender,
                 accentColor: PlanetTheme.sky,

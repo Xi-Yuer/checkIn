@@ -181,6 +181,34 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
         }
     }
 
+    func streaks(taskIDs: [UUID], through date: Date) async throws -> [UUID: Int] {
+        guard !taskIDs.isEmpty else { return [:] }
+        let calendar = calendar
+        return try await store.perform { context in
+            let taskRequest = TaskEntity.fetchRequest()
+            taskRequest.predicate = NSPredicate(format: "id IN %@", taskIDs)
+            let tasks = try context.fetch(taskRequest).map { $0.makeDTO() }
+
+            let eventRequest = CheckInEntity.fetchRequest()
+            eventRequest.predicate = NSPredicate(format: "task.id IN %@", taskIDs)
+            let groupedEvents = Dictionary(
+                grouping: try context.fetch(eventRequest).compactMap { $0.makeDTO() },
+                by: \.taskID
+            )
+            let calculator = StreakCalculator()
+
+            return Dictionary(uniqueKeysWithValues: tasks.map { task in
+                let value = calculator.currentStreak(
+                    task: task,
+                    checkIns: groupedEvents[task.id] ?? [],
+                    through: date,
+                    calendar: calendar
+                )
+                return (task.id, value)
+            })
+        }
+    }
+
     func statistics(period: StatisticsPeriod, anchor: Date, now: Date) async throws -> StatisticsSummary {
         let calendar = calendar
         return try await store.perform { context in

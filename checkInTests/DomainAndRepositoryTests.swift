@@ -233,8 +233,12 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(results.compactMap { try? $0.get() }.count, 2)
         let completedProgress = try await repositories.checkIns.progress(taskID: id, on: now)
         XCTAssertEqual(completedProgress.completed, 2)
+        let completedStreaks = try await repositories.checkIns.streaks(taskIDs: [id], through: now)
+        XCTAssertEqual(completedStreaks[id], 1)
         let undoneProgress = try await repositories.checkIns.undoLastCheckIn(taskID: id, on: now)
         XCTAssertEqual(undoneProgress.completed, 1)
+        let undoneStreaks = try await repositories.checkIns.streaks(taskIDs: [id], through: now)
+        XCTAssertEqual(undoneStreaks[id], 0)
     }
 
     func testPauseResumeAndCascadeDelete() async throws {

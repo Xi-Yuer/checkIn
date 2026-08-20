@@ -18,6 +18,7 @@ struct AppStoreError: Identifiable, Equatable, Sendable {
 final class AppStore: ObservableObject {
     @Published private(set) var habits: [TaskDTO] = []
     @Published private(set) var todayProgress: [UUID: DailyProgress] = [:]
+    @Published private(set) var habitStreaks: [UUID: Int] = [:]
     @Published private(set) var checkIns: [CheckInDTO] = []
     @Published private(set) var statistics: StatisticsSummary
     @Published private(set) var badges: [EarnedBadge] = []
@@ -195,6 +196,7 @@ final class AppStore: ObservableObject {
             if progress.isComplete {
                 celebrationHabit = habits.first { $0.id == habitID }
             }
+            await refreshStreak(for: habitID)
             try await reloadDerivedState()
             await rebuildSnapshotIgnoringFailure()
             return progress
@@ -215,6 +217,7 @@ final class AppStore: ObservableObject {
             let progress = try await checkInRepository.undoLastCheckIn(taskID: habitID, on: today)
             todayProgress[habitID] = progress
             celebrationHabit = nil
+            await refreshStreak(for: habitID)
             try await reloadDerivedState()
             await rebuildSnapshotIgnoringFailure()
             return progress
@@ -377,7 +380,19 @@ final class AppStore: ObservableObject {
     private func reloadCoreState() async throws {
         habits = try await tasks.fetch(TaskQuery(filter: .all, sort: habitSort, date: today))
         todayProgress = try await checkInRepository.progresses(taskIDs: habits.map(\.id), on: today)
+        await reloadHabitStreaks()
         try await reloadDerivedState()
+    }
+
+    private func reloadHabitStreaks() async {
+        habitStreaks = (try? await checkInRepository.streaks(
+            taskIDs: habits.map(\.id),
+            through: today
+        )) ?? [:]
+    }
+
+    private func refreshStreak(for habitID: UUID) async {
+        habitStreaks[habitID] = (try? await checkInRepository.streak(taskID: habitID, through: today)) ?? 0
     }
 
     private func reloadDerivedState() async throws {

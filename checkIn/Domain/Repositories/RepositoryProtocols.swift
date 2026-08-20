@@ -47,6 +47,7 @@ protocol CheckInRepository: Sendable {
     func history(taskID: UUID, range: DateInterval) async throws -> [CheckInDTO]
     func checkInCount(taskID: UUID) async throws -> Int
     func streak(taskID: UUID, through date: Date) async throws -> Int
+    func streaks(taskIDs: [UUID], through date: Date) async throws -> [UUID: Int]
     func statistics(period: StatisticsPeriod, anchor: Date, now: Date) async throws -> StatisticsSummary
     func badges(through date: Date) async throws -> [EarnedBadge]
 }

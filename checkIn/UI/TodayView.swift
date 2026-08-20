@@ -1,166 +1,178 @@
 import SwiftUI
 
-private enum TodayFilter: String, CaseIterable, Identifiable {
-    case pending
-    case completed
-    case all
-
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .pending: "待完成"
-        case .completed: "已完成"
-        case .all: "全部"
-        }
-    }
-}
-
 struct TodayView: View {
     @ObservedObject var store: AppStore
     let onAdd: () -> Void
-
-    @State private var filter: TodayFilter = .pending
-
-    private var displayedHabits: [TaskDTO] {
-        switch filter {
-        case .pending: store.pendingTodayHabits
-        case .completed: store.completedTodayHabits
-        case .all: store.todayHabits
-        }
-    }
+    var onShowHabits: () -> Void = {}
 
     var body: some View {
         ZStack {
             PlanetBackground()
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    greeting
-                    progressHero
 
-                    if store.todayHabits.isEmpty {
-                        EmptyStateView(
-                            mood: .ready,
-                            title: "今天还没有计划",
-                            message: "从一个轻松的小目标开始，让每天都有一点进步。",
-                            actionTitle: "添加第一个习惯",
-                            action: onAdd
-                        )
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        filterBar
-                        habitContent
-                    }
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    heroSection
+                    todayContent
                 }
                 .frame(maxWidth: 760)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 36)
                 .frame(maxWidth: .infinity)
+                .padding(.bottom, 20)
             }
             .refreshable { await store.load() }
         }
-        .navigationTitle("今日打卡")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: onAdd) {
-                    Image(systemName: "plus")
-                        .font(.body.weight(.bold))
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("添加习惯")
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var greeting: some View {
-        HStack(alignment: .firstTextBaseline) {
+    private var heroSection: some View {
+        VStack(spacing: 0) {
+            pageHeader
+
+            Image("TodayHero")
+                .resizable()
+                .renderingMode(.original)
+                .scaledToFit()
+                .frame(maxWidth: 350)
+                .padding(.horizontal, 22)
+                .padding(.top, 2)
+                .padding(.bottom, 2)
+                .accessibilityHidden(true)
+
+            progressSummary
+        }
+        .background(
+            LinearGradient(
+                colors: [PlanetTheme.surface.opacity(0.25), PlanetTheme.softViolet.opacity(0.55)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+    }
+
+    private var pageHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(dayGreeting)
-                    .font(.title2.weight(.heavy))
+                Text("今日打卡")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .foregroundStyle(PlanetTheme.primaryText)
-                Text(store.today, format: .dateTime.month().day().weekday(.wide))
-                    .font(.subheadline)
+                Text(
+                    store.today,
+                    format: .dateTime
+                        .month()
+                        .day()
+                        .weekday(.wide)
+                        .locale(Locale(identifier: "zh_CN"))
+                )
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
-            Spacer()
-            Image(systemName: "sparkles")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(PlanetTheme.gold)
-        }
-    }
 
-    private var progressHero: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(store.completedTodayHabits.isEmpty ? "点亮今天的第一颗星" : progressMessage)
-                        .font(.headline.weight(.heavy))
-                        .foregroundStyle(PlanetTheme.primaryText)
-                    Text("已完成 \(store.completedTodayHabits.count) 项，还有 \(store.pendingTodayHabits.count) 项")
-                        .font(.caption)
+            Spacer(minLength: 10)
+
+            HStack(spacing: 4) {
+                Button {
+                    Task { await store.load() }
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(PlanetTheme.lavender)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("刷新今日状态")
+
+                Button(action: onShowHabits) {
+                    Image(systemName: "square.grid.3x3")
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(PlanetTheme.secondaryText)
+                        .frame(width: 44, height: 44)
                 }
-                ProgressView(value: store.overallTodayProgress)
-                    .tint(PlanetTheme.violet)
-                    .accessibilityLabel("今日总体进度")
-                Text(store.overallTodayProgress, format: .percent.precision(.fractionLength(0)))
-                    .font(.system(.title2, design: .rounded, weight: .heavy))
-                    .foregroundStyle(PlanetTheme.violet)
+                .buttonStyle(.plain)
+                .accessibilityLabel("查看全部习惯")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            MascotView(mood: store.pendingTodayHabits.isEmpty ? .celebrating : .resting, size: 116)
-                .frame(width: 120)
         }
-        .planetPanel(padding: 18)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
     }
 
-    private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(TodayFilter.allCases) { item in
-                    FilterPill(title: item.title, value: item, selection: $filter)
-                }
-            }
-            .padding(.vertical, 1)
+    private var progressSummary: some View {
+        HStack(spacing: 0) {
+            metric(value: "\(store.completedTodayHabits.count)", label: "已打卡")
+            metricDivider
+            metric(value: "\(store.pendingTodayHabits.count)", label: "未打卡")
+            metricDivider
+            metric(value: completionPercentage, label: "完成率")
         }
-        .accessibilityLabel("今日任务筛选")
+        .padding(.vertical, 11)
+        .background(PlanetTheme.mutedSurface.opacity(0.78))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func metric(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(PlanetTheme.secondaryText)
+            Text(value)
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var metricDivider: some View {
+        Rectangle()
+            .fill(PlanetTheme.separator.opacity(0.55))
+            .frame(width: 1, height: 38)
     }
 
     @ViewBuilder
-    private var habitContent: some View {
-        if displayedHabits.isEmpty {
+    private var todayContent: some View {
+        if store.todayHabits.isEmpty {
             EmptyStateView(
-                mood: filter == .completed ? .reading : .celebrating,
-                title: filter == .completed ? "还没有完成的习惯" : "这一组已经清空",
-                message: filter == .completed ? "完成一次打卡后，星光会出现在这里。" : "做得很好，去看看今天的全部记录吧。"
+                mood: .ready,
+                title: "今天还没有计划",
+                message: "从一个轻松的小目标开始，让每天都有一点进步。",
+                actionTitle: "添加第一个习惯",
+                action: onAdd
             )
             .frame(maxWidth: .infinity)
+            .padding(.top, 20)
         } else {
-            LazyVStack(spacing: 10) {
-                ForEach(displayedHabits) { habit in
-                    HabitListRow(
+            LazyVStack(spacing: 0) {
+                ForEach(Array(store.todayHabits.enumerated()), id: \.element.id) { index, habit in
+                    TodayHabitRow(
                         habit: habit,
                         progress: store.todayProgress[habit.id],
+                        isProcessing: store.processingHabitIDs.contains(habit.id),
                         onCheckIn: { Task { await store.checkIn(habitID: habit.id) } }
                     )
+
+                    if index < store.todayHabits.count - 1 {
+                        Divider()
+                            .overlay(PlanetTheme.separator.opacity(0.48))
+                            .padding(.leading, 66)
+                    }
                 }
             }
+            .padding(.vertical, 4)
+            .background(PlanetTheme.surface.opacity(0.93))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(PlanetTheme.separator.opacity(0.34), lineWidth: 1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
         }
     }
 
-    private var progressMessage: String {
-        store.pendingTodayHabits.isEmpty ? "今日星光全部点亮" : "已经在轨道上了"
-    }
-
-    private var dayGreeting: String {
-        let hour = Calendar.autoupdatingCurrent.component(.hour, from: store.today)
-        switch hour {
-        case 5..<11: return "早上好，小星球醒来了"
-        case 11..<14: return "中午好，给自己一点光"
-        case 14..<19: return "下午好，继续稳稳前进"
-        default: return "晚上好，收好今天的星光"
-        }
+    private var completionPercentage: String {
+        store.overallTodayProgress.formatted(
+            .percent.precision(.fractionLength(0))
+        )
     }
 }

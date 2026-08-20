@@ -136,7 +136,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var soundEnabled: Bool = true
     var hapticsEnabled: Bool = true
     var appearance: AppAppearance = .system
-    var taskFilter: TaskFilter = .active
+    var taskFilter: TaskFilter = .all
     var taskSort: TaskSort = .manual
 
     static let `default` = AppSettings()
