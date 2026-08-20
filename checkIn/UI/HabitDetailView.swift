@@ -24,11 +24,9 @@ struct HabitDetailView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         hero(habit)
-                        info(habit)
-                        todayAction(habit)
-                        heatmap(habit)
+                        planCard(habit)
+                        progressRow(habit)
                         if !habit.note.isEmpty { note(habit) }
-                        badgeShelf
                     }
                     .frame(maxWidth: 720)
                     .padding(.horizontal, 16)
@@ -155,100 +153,164 @@ struct HabitDetailView: View {
         .qCard(padding: 14)
     }
 
-    private func todayAction(_ habit: TaskDTO) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("今日目标")
-                        .font(.system(.title3, design: .rounded, weight: .heavy))
-                    Text(todayStatusText(habit))
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                }
-                Spacer()
-                ProgressRing(
-                    progress: progress?.fractionComplete ?? 0,
-                    lineWidth: 7,
-                    size: 66,
-                    color: PlanetTheme.mint
-                )
-            }
+    private func planCard(_ habit: TaskDTO) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("习惯信息")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
 
-            if habit.isArchived {
-                Button {
-                    Task { await store.resumeHabit(id: habit.id) }
-                } label: {
-                    Label("恢复这个习惯", systemImage: "play.fill")
+            VStack(spacing: 0) {
+                infoRow(symbol: "calendar", title: "重复计划", value: habit.schedule.compactTitle)
+                infoDivider
+                infoRow(symbol: "flag.fill", title: "每日目标", value: "\(habit.dailyTarget) 次")
+                infoDivider
+                infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
+                if let startDate = habit.startDate {
+                    infoDivider
+                    infoRow(symbol: "play.circle.fill", title: "开始日期", value: formattedDate(startDate))
                 }
-                .buttonStyle(QActionButtonStyle())
-            } else if scheduleService.isScheduled(habit, on: store.today, calendar: calendar) {
-                Button {
-                    Task { await store.checkIn(habitID: habit.id) }
-                } label: {
-                    Label(
-                        progress?.isComplete == true ? "今日已完成" : "完成一次打卡",
-                        systemImage: progress?.isComplete == true ? "checkmark.circle.fill" : "sparkles"
-                    )
+                if let endDate = habit.endDate {
+                    infoDivider
+                    infoRow(symbol: "flag.checkered", title: "结束日期", value: formattedDate(endDate))
                 }
-                .buttonStyle(QActionButtonStyle())
-                .disabled(progress?.isComplete == true || store.processingHabitIDs.contains(habit.id))
-
-                if (progress?.completed ?? 0) > 0 {
-                    Button {
-                        Task { await store.undoLastCheckIn(habitID: habit.id) }
-                    } label: {
-                        Label("撤销最近一次", systemImage: "arrow.uturn.backward")
-                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(PlanetTheme.violet)
+                if habit.isArchived {
+                    infoDivider
+                    infoRow(symbol: "pause.fill", title: "状态", value: "已暂停")
                 }
-            } else {
-                Label("今天不是计划日", systemImage: "moon.stars.fill")
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(PlanetTheme.secondaryText)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(PlanetTheme.mutedSurface)
-                    .clipShape(Capsule())
             }
         }
         .qCard()
     }
 
-    private func heatmap(_ habit: TaskDTO) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("最近五周")
-                    .font(.system(.title3, design: .rounded, weight: .heavy))
-                    .foregroundStyle(PlanetTheme.primaryText)
-                Text("颜色越深，完成度越高")
+    private func progressRow(_ habit: TaskDTO) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            todayPanel(habit)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Rectangle()
+                .fill(PlanetTheme.separator.opacity(0.4))
+                .frame(width: 1)
+
+            heatmap(habit)
+        }
+        .qCard(padding: 14)
+    }
+
+    private func todayPanel(_ habit: TaskDTO) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("今日目标")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
+
+            HStack(alignment: .center, spacing: 8) {
+                Text(todayStatusText(habit))
                     .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(PlanetTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                ProgressRing(
+                    progress: progress?.fractionComplete ?? 0,
+                    lineWidth: 4,
+                    size: 40,
+                    color: PlanetTheme.mint
+                )
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
-                ForEach(orderedWeekdays) { weekday in
-                    Text(weekday.shortTitle)
-                        .font(.system(.caption2, design: .rounded, weight: .bold))
-                        .foregroundStyle(PlanetTheme.secondaryText)
+            todayButtons(habit)
+        }
+    }
+
+    @ViewBuilder
+    private func todayButtons(_ habit: TaskDTO) -> some View {
+        if habit.isArchived {
+            Button {
+                Task { await store.resumeHabit(id: habit.id) }
+            } label: {
+                Label("恢复这个习惯", systemImage: "play.fill")
+            }
+            .buttonStyle(QActionButtonStyle())
+        } else if scheduleService.isScheduled(habit, on: store.today, calendar: calendar) {
+            Button {
+                Task { await store.checkIn(habitID: habit.id) }
+            } label: {
+                Label(
+                    progress?.isComplete == true ? "已完成" : "打卡",
+                    systemImage: progress?.isComplete == true ? "checkmark.circle.fill" : "sparkles"
+                )
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(progress?.isComplete == true ? PlanetTheme.separator : PlanetTheme.violet)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(progress?.isComplete == true || store.processingHabitIDs.contains(habit.id))
+
+            if (progress?.completed ?? 0) > 0 {
+                Button {
+                    Task { await store.undoLastCheckIn(habitID: habit.id) }
+                } label: {
+                    Label("撤销", systemImage: "arrow.uturn.backward")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
                 }
-                ForEach(recentDates, id: \.self) { date in
-                    HabitHeatmapCell(
-                        date: date,
-                        fraction: completionFraction(on: date, habit: habit),
-                        isScheduled: scheduleService.isScheduled(
-                            habit,
-                            on: date,
-                            calendar: calendar,
-                            excludingPaused: false
-                        ) && date <= calendar.startOfDay(for: store.today),
-                        isToday: calendar.isDateInToday(date)
-                    )
+                .buttonStyle(.plain)
+                .foregroundStyle(PlanetTheme.violet)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+            }
+        } else {
+            Label("今天不是计划日", systemImage: "moon.stars.fill")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(PlanetTheme.secondaryText)
+                .frame(maxWidth: .infinity, minHeight: 36)
+                .background(PlanetTheme.mutedSurface)
+                .clipShape(Capsule())
+        }
+    }
+
+    private func heatmap(_ habit: TaskDTO) -> some View {
+        let cellSize: CGFloat = 14
+        let gap: CGFloat = 4
+        let weeks = stride(from: 0, to: recentDates.count, by: 7).map { start in
+            Array(recentDates[start..<min(start + 7, recentDates.count)])
+        }
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("最近五周")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
+
+            VStack(alignment: .leading, spacing: gap) {
+                HStack(spacing: gap) {
+                    ForEach(orderedWeekdays) { weekday in
+                        Text(weekday.shortTitle)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(PlanetTheme.secondaryText)
+                            .frame(width: cellSize)
+                    }
+                }
+
+                ForEach(Array(weeks.enumerated()), id: \.offset) { _, days in
+                    HStack(spacing: gap) {
+                        ForEach(days, id: \.self) { date in
+                            HabitHeatmapCell(
+                                date: date,
+                                fraction: completionFraction(on: date, habit: habit),
+                                isScheduled: scheduleService.isScheduled(
+                                    habit,
+                                    on: date,
+                                    calendar: calendar,
+                                    excludingPaused: false
+                                ) && date <= calendar.startOfDay(for: store.today),
+                                isToday: calendar.isDateInToday(date),
+                                size: cellSize
+                            )
+                        }
+                    }
                 }
             }
         }
-        .qCard()
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func note(_ habit: TaskDTO) -> some View {
@@ -264,51 +326,23 @@ struct HabitDetailView: View {
         .qCard(padding: 14)
     }
 
-    private func info(_ habit: TaskDTO) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("习惯信息")
-                .font(.system(.headline, design: .rounded, weight: .heavy))
-                .foregroundStyle(PlanetTheme.primaryText)
-                .padding(.bottom, 4)
-
-            infoRow(symbol: "calendar", title: "重复计划", value: habit.schedule.compactTitle)
-            infoDivider
-            infoRow(symbol: "flag.fill", title: "每日目标", value: "\(habit.dailyTarget) 次")
-            infoDivider
-            infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
-            if let startDate = habit.startDate {
-                infoDivider
-                infoRow(symbol: "play.circle.fill", title: "开始日期", value: formattedDate(startDate))
-            }
-            if let endDate = habit.endDate {
-                infoDivider
-                infoRow(symbol: "flag.checkered", title: "结束日期", value: formattedDate(endDate))
-            }
-            if habit.isArchived {
-                infoDivider
-                infoRow(symbol: "pause.fill", title: "状态", value: "已暂停")
-            }
-        }
-        .qCard(padding: 14)
-    }
-
     private func infoRow(symbol: String, title: String, value: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.footnote.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(PlanetTheme.violet)
-                .frame(width: 18)
+                .frame(width: 20)
             Text(title)
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(PlanetTheme.secondaryText)
-            Spacer(minLength: 8)
+            Spacer(minLength: 12)
             Text(value)
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.primaryText)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(2)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 11)
         .accessibilityElement(children: .combine)
     }
 
@@ -330,36 +364,6 @@ struct HabitDetailView: View {
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "yyyy年M月d日"
         return formatter.string(from: date)
-    }
-
-    @ViewBuilder
-    private var badgeShelf: some View {
-        if !store.badges.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("星光徽章")
-                    .font(.system(.title3, design: .rounded, weight: .heavy))
-                    .foregroundStyle(PlanetTheme.primaryText)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(store.badges) { badge in
-                            VStack(spacing: 7) {
-                                Image(systemName: badge.kind.symbolName)
-                                    .font(.title2.weight(.bold))
-                                    .foregroundStyle(PlanetTheme.gold)
-                                Text(badge.kind.title)
-                                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                                    .foregroundStyle(PlanetTheme.primaryText)
-                                    .lineLimit(1)
-                            }
-                            .frame(width: 108, height: 82)
-                            .background(PlanetTheme.mutedSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.nest, style: .continuous))
-                        }
-                    }
-                }
-            }
-            .qCard()
-        }
     }
 
     private var historyCountValue: Int {
@@ -423,15 +427,17 @@ private struct HabitHeatmapCell: View {
     let fraction: Double
     let isScheduled: Bool
     let isToday: Bool
+    var size: CGFloat = 16
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
             .fill(fillColor)
-            .aspectRatio(1, contentMode: .fit)
+            .frame(width: size, height: size)
             .overlay {
                 if isToday {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(PlanetTheme.lavender, lineWidth: 2)
+                    Circle()
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: 4, height: 4)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -440,7 +446,7 @@ private struct HabitHeatmapCell: View {
     }
 
     private var fillColor: Color {
-        guard isScheduled else { return PlanetTheme.separator.opacity(0.18) }
+        guard isScheduled else { return PlanetTheme.separator.opacity(0.22) }
         if fraction >= 1 { return PlanetTheme.mint }
         if fraction > 0 { return PlanetTheme.mint.opacity(0.42) }
         return PlanetTheme.mutedSurface

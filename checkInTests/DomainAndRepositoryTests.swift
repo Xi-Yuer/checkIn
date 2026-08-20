@@ -56,7 +56,7 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
     }
 
-    func testStatisticsAndBadgesUseCompletedPlannedTaskDays() {
+    func testStatisticsUseCompletedPlannedTaskDays() {
         let task = makeTask(schedule: .daily, dailyTarget: 2, startDate: date(2026, 8, 17))
         let events = [
             makeCheckIn(task: task, date: date(2026, 8, 17)),
@@ -77,15 +77,6 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(summary.plannedTaskDays, 3)
         XCTAssertEqual(summary.completedTaskDays, 2)
         XCTAssertEqual(summary.completionRate, 2.0 / 3.0, accuracy: 0.001)
-
-        let badges = BadgeCalculator().earnedBadges(
-            tasks: [task],
-            checkIns: events,
-            through: now,
-            calendar: calendar
-        )
-        XCTAssertTrue(badges.contains { $0.kind == .firstCompletion })
-        XCTAssertFalse(badges.contains { $0.kind == .streak3 })
     }
 
     func testPlanRevisionsPreserveHistoricalTargetsAndExposePartialProgress() {
@@ -126,12 +117,6 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(summary.completedTaskDays, 2)
         XCTAssertEqual(summary.daily.last?.progressedTaskCount, 1)
         XCTAssertEqual(summary.daily.last?.intensity, .partial)
-        XCTAssertTrue(BadgeCalculator().earnedBadges(
-            tasks: [task],
-            checkIns: events,
-            through: now,
-            calendar: calendar
-        ).contains { $0.kind == .firstCompletion })
     }
 
     func testPauseIntervalsSkipMissedDaysWithoutBreakingStreak() {
@@ -158,18 +143,6 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
         XCTAssertEqual(summary.plannedTaskDays, 2)
         XCTAssertEqual(summary.completedTaskDays, 2)
-    }
-
-    func testBadgesIgnoreEventsOnNonScheduledDays() {
-        let saturday = date(2026, 8, 22)
-        let task = makeTask(schedule: .weekdays, startDate: date(2026, 8, 17))
-        let badges = BadgeCalculator().earnedBadges(
-            tasks: [task],
-            checkIns: [makeCheckIn(task: task, date: saturday)],
-            through: saturday,
-            calendar: calendar
-        )
-        XCTAssertTrue(badges.isEmpty)
     }
 
     func testStoredCreatedDayKeyDoesNotMoveAcrossTimeZones() {

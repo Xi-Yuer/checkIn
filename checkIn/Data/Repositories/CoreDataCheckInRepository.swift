@@ -225,20 +225,6 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
         }
     }
 
-    func badges(through date: Date) async throws -> [EarnedBadge] {
-        let calendar = calendar
-        return try await store.perform { context in
-            let tasks = try context.fetch(TaskEntity.fetchRequest()).map { $0.makeDTO() }
-            let events = try context.fetch(CheckInEntity.fetchRequest()).compactMap { $0.makeDTO() }
-            return BadgeCalculator().earnedBadges(
-                tasks: tasks,
-                checkIns: events,
-                through: date,
-                calendar: calendar
-            )
-        }
-    }
-
     private static func total(
         taskID: UUID,
         dayKey: String,

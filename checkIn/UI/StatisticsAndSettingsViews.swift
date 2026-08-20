@@ -9,72 +9,81 @@ struct StatisticsView: View {
 
     var body: some View {
         ZStack {
-            PlanetBackground()
+            PlanetAtmosphere()
 
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
+                    pageHeader
                     statisticsHero
                     periodControls
                     trendPanel
-                    summaryPanel
                     heatmapPanel
                 }
                 .frame(maxWidth: 760)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 32)
+                .padding(.bottom, 28)
+                .frame(maxWidth: .infinity)
             }
         }
-        .navigationTitle("统计")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .environment(\.locale, chineseLocale)
         .task {
             await store.refreshStatistics()
         }
     }
 
-    private var statisticsHero: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 20) {
-                heroCopy
-                Spacer(minLength: 12)
-                MascotView(mood: .charting, size: 118)
-                ProgressRing(
-                    progress: store.statistics.completionRate,
-                    lineWidth: 9,
-                    size: 86,
-                    color: PlanetTheme.violet
-                )
+    private var pageHeader: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("统计")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text(intervalTitle)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-
-            VStack(spacing: 12) {
-                HStack(alignment: .center, spacing: 14) {
-                    heroCopy
-                    Spacer(minLength: 8)
-                    ProgressRing(
-                        progress: store.statistics.completionRate,
-                        lineWidth: 8,
-                        size: 76,
-                        color: PlanetTheme.violet
-                    )
-                }
-                MascotView(mood: .charting, size: 104)
-            }
+            Spacer(minLength: 8)
+            statsSticker("StatsMoon", height: 42)
         }
-        .planetPanel(padding: 18)
+        .padding(.horizontal, 22)
+        .padding(.top, 8)
     }
 
-    private var heroCopy: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Label("星光进度", systemImage: "sparkles")
-                .font(.subheadline.weight(.semibold))
+    private var statisticsHero: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("星光进度")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.violet)
             Text(completionHeadline)
-                .font(.system(.title2, design: .rounded, weight: .heavy))
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundStyle(PlanetTheme.primaryText)
             Text(completionMessage)
-                .font(.subheadline)
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(PlanetTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Capsule()
+                .fill(PlanetTheme.mutedSurface)
+                .frame(height: 8)
+                .overlay(alignment: .leading) {
+                    GeometryReader { geo in
+                        Capsule()
+                            .fill(PlanetTheme.mint)
+                            .frame(width: max(8, geo.size.width * store.statistics.completionRate))
+                    }
+                }
+                .clipShape(Capsule())
+                .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 96)
+        .qCard(padding: 16)
+        .overlay(alignment: .bottomTrailing) {
+            statsSticker("StatsAstronaut", height: 128)
+                .offset(x: -2, y: 8)
+        }
+        .padding(.horizontal, 16)
     }
 
     private var periodControls: some View {
@@ -85,6 +94,7 @@ struct StatisticsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .font(.system(.subheadline, design: .rounded, weight: .semibold))
 
             HStack(spacing: 10) {
                 Button {
@@ -98,7 +108,7 @@ struct StatisticsView: View {
                 .accessibilityLabel("上一个统计周期")
 
                 Text(intervalTitle)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(PlanetTheme.primaryText)
                     .frame(maxWidth: .infinity)
                     .lineLimit(1)
@@ -116,15 +126,18 @@ struct StatisticsView: View {
                 .accessibilityLabel("下一个统计周期")
             }
         }
-        .planetPanel(padding: 12)
+        .qCard(padding: 12)
+        .padding(.horizontal, 16)
     }
 
+    private var chineseLocale: Locale { Locale(identifier: "zh_CN") }
+
     private var trendPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             panelTitle("完成趋势", symbol: "chart.bar.fill")
 
             if chartPoints.isEmpty {
-                compactEmptyState("这个周期还没有计划数据")
+                compactEmptyState("这个周期还没有计划数据", sticker: "StatsCheer")
             } else {
                 Chart(chartPoints) { point in
                     BarMark(
@@ -136,7 +149,7 @@ struct StatisticsView: View {
                             ? PlanetTheme.mint.gradient
                             : PlanetTheme.violet.gradient
                     )
-                    .cornerRadius(3)
+                    .cornerRadius(6)
                     .accessibilityLabel(point.accessibilityLabel)
                     .accessibilityValue(
                         Text(point.completionRate, format: .percent.precision(.fractionLength(0)))
@@ -161,80 +174,28 @@ struct StatisticsView: View {
                             .foregroundStyle(PlanetTheme.secondaryText)
                     }
                 }
-                .frame(height: 218)
+                .frame(height: 200)
             }
         }
-        .planetPanel()
-    }
-
-    private var summaryPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            panelTitle("本期摘要", symbol: "scope")
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    summaryTile(
-                        value: "\(store.statistics.completedTaskDays)",
-                        label: "完成任务日",
-                        symbol: "checkmark.circle.fill",
-                        color: PlanetTheme.mint
-                    )
-                    summaryTile(
-                        value: "\(store.statistics.currentStreak)",
-                        label: "当前连续",
-                        symbol: "flame.fill",
-                        color: PlanetTheme.coral
-                    )
-                    summaryTile(
-                        value: "\(store.statistics.bestStreak)",
-                        label: "最佳连续",
-                        symbol: "trophy.fill",
-                        color: PlanetTheme.gold
-                    )
-                }
-
-                VStack(spacing: 10) {
-                    summaryTile(
-                        value: "\(store.statistics.completedTaskDays)",
-                        label: "完成任务日",
-                        symbol: "checkmark.circle.fill",
-                        color: PlanetTheme.mint
-                    )
-                    HStack(spacing: 10) {
-                        summaryTile(
-                            value: "\(store.statistics.currentStreak)",
-                            label: "当前连续",
-                            symbol: "flame.fill",
-                            color: PlanetTheme.coral
-                        )
-                        summaryTile(
-                            value: "\(store.statistics.bestStreak)",
-                            label: "最佳连续",
-                            symbol: "trophy.fill",
-                            color: PlanetTheme.gold
-                        )
-                    }
-                }
-            }
-        }
-        .planetPanel()
+        .qCard(padding: 16)
+        .padding(.horizontal, 16)
     }
 
     private var heatmapPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 8) {
                 panelTitle("星光日历", symbol: "calendar")
                 Spacer()
                 heatmapLegend
             }
 
             if store.statistics.daily.isEmpty {
-                compactEmptyState("有计划的日期会在这里留下星光")
+                compactEmptyState("有计划的日期会在这里留下星光", sticker: "StatsCloudPeek")
             } else {
-                LazyVGrid(columns: heatmapColumns, spacing: 5) {
+                LazyVGrid(columns: heatmapColumns, spacing: 4) {
                     ForEach(orderedWeekdaySymbols, id: \.self) { symbol in
                         Text(symbol)
-                            .font(.caption2.weight(.semibold))
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
                             .foregroundStyle(PlanetTheme.secondaryText)
                             .frame(maxWidth: .infinity)
                     }
@@ -254,7 +215,15 @@ struct StatisticsView: View {
                 }
             }
         }
-        .planetPanel()
+        .qCard(padding: 16)
+        .overlay(alignment: .topTrailing) {
+            if !store.statistics.daily.isEmpty {
+                statsSticker("StatsCloudPeek", height: 48)
+                    .offset(x: 6, y: -16)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
 
     private var periodBinding: Binding<StatisticsPeriod> {
@@ -275,7 +244,7 @@ struct StatisticsView: View {
                 guard let date = calendar.date(from: components) else { return nil }
                 return StatisticsChartPoint(
                     id: DayKey(date: date, calendar: calendar).rawValue,
-                    label: date.formatted(.dateTime.month(.abbreviated)),
+                    label: "\(calendar.component(.month, from: date))月",
                     planned: days.reduce(0) { $0 + $1.plannedTaskCount },
                     completed: days.reduce(0) { $0 + $1.completedTaskCount }
                 )
@@ -286,9 +255,9 @@ struct StatisticsView: View {
         return store.statistics.daily.map { statistic in
             let label: String
             if store.statisticsPeriod == .week {
-                label = statistic.date.formatted(.dateTime.weekday(.narrow).day())
+                label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(chineseLocale))
             } else {
-                label = statistic.date.formatted(.dateTime.day())
+                label = "\(calendar.component(.day, from: statistic.date))日"
             }
             return StatisticsChartPoint(
                 id: statistic.dayKey,
@@ -311,8 +280,7 @@ struct StatisticsView: View {
     }
 
     private var orderedWeekdaySymbols: [String] {
-        let symbols = calendar.veryShortStandaloneWeekdaySymbols
-        guard !symbols.isEmpty else { return [] }
+        let symbols = ["日", "一", "二", "三", "四", "五", "六"]
         let start = max(0, min(symbols.count - 1, calendar.firstWeekday - 1))
         return Array(symbols[start...] + symbols[..<start])
     }
@@ -320,7 +288,7 @@ struct StatisticsView: View {
     private var completionHeadline: String {
         store.statistics.plannedTaskDays == 0
             ? "等待第一颗星"
-            : store.statistics.completionRate.formatted(.percent.precision(.fractionLength(0)))
+            : store.statistics.completionRate.formatted(.percent.precision(.fractionLength(0)).locale(chineseLocale))
     }
 
     private var completionMessage: String {
@@ -336,11 +304,11 @@ struct StatisticsView: View {
             ?? store.statistics.interval.end
         switch store.statisticsPeriod {
         case .week:
-            return "\(start.formatted(.dateTime.month().day())) - \(inclusiveEnd.formatted(.dateTime.month().day()))"
+            return "\(chineseDate(start, .dateTime.month().day())) – \(chineseDate(inclusiveEnd, .dateTime.month().day()))"
         case .month:
-            return start.formatted(.dateTime.year().month(.wide))
+            return chineseDate(start, .dateTime.year().month(.wide))
         case .year:
-            return start.formatted(.dateTime.year())
+            return chineseDate(start, .dateTime.year())
         }
     }
 
@@ -374,45 +342,37 @@ struct StatisticsView: View {
         return calendar.date(byAdding: component, value: value, to: store.statisticsAnchor)
     }
 
+    private func chineseDate(_ date: Date, _ style: Date.FormatStyle) -> String {
+        date.formatted(style.locale(chineseLocale))
+    }
+
     private func panelTitle(_ title: String, symbol: String) -> some View {
         Label(title, systemImage: symbol)
-            .font(.headline)
+            .font(.system(.headline, design: .rounded, weight: .heavy))
             .foregroundStyle(PlanetTheme.primaryText)
             .symbolRenderingMode(.hierarchical)
     }
 
-    private func compactEmptyState(_ message: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(PlanetTheme.lavender)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(PlanetTheme.secondaryText)
-        }
-        .frame(maxWidth: .infinity, minHeight: 92)
-        .accessibilityElement(children: .combine)
+    private func statsSticker(_ name: String, height: CGFloat) -> some View {
+        Image(name)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .frame(height: height)
+            .accessibilityHidden(true)
     }
 
-    private func summaryTile(value: String, label: String, symbol: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(color)
-            Text(value)
-                .font(.system(.title2, design: .rounded, weight: .bold))
-                .foregroundStyle(PlanetTheme.primaryText)
-            Text(label)
-                .font(.caption)
+    private func compactEmptyState(_ message: String, sticker: String) -> some View {
+        HStack(spacing: 12) {
+            statsSticker(sticker, height: 64)
+            Text(message)
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(PlanetTheme.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(PlanetTheme.elevatedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label)，\(value) 天")
     }
 
     private var heatmapLegend: some View {
@@ -451,7 +411,6 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     profileHero
-                    badgePanel
                     preferencesPanel
                     notificationPanel
                     informationPanel
@@ -479,31 +438,13 @@ struct SettingsView: View {
                     .font(.subheadline)
                     .foregroundStyle(PlanetTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                Label("已收集 \(store.badges.count) 枚徽章", systemImage: "medal.fill")
+                Label("\(store.habits.filter { !$0.isArchived }.count) 个习惯在培养", systemImage: "heart.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(PlanetTheme.violet)
             }
             Spacer(minLength: 0)
         }
         .planetPanel(padding: 18)
-    }
-
-    private var badgePanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("成长徽章", systemImage: "trophy.fill")
-                .font(.headline)
-                .foregroundStyle(PlanetTheme.primaryText)
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 88, maximum: 120), spacing: 10)],
-                spacing: 10
-            ) {
-                ForEach(BadgeKind.allCases) { kind in
-                    BadgeTile(kind: kind, earned: earnedBadge(for: kind))
-                }
-            }
-        }
-        .planetPanel()
     }
 
     private var preferencesPanel: some View {
@@ -685,10 +626,6 @@ struct SettingsView: View {
         Divider().overlay(PlanetTheme.separator)
     }
 
-    private func earnedBadge(for kind: BadgeKind) -> EarnedBadge? {
-        store.badges.first { $0.kind == kind }
-    }
-
     private func settingsHeader(_ title: String, symbol: String) -> some View {
         Label(title, systemImage: symbol)
             .font(.headline)
@@ -742,55 +679,24 @@ private struct HeatmapDayView: View {
     let showsDayNumber: Bool
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 4, style: .continuous)
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
             .fill(statistic.plannedTaskCount == 0 ? PlanetTheme.separator.opacity(0.14) : statistic.intensity.color)
             .aspectRatio(1, contentMode: .fit)
             .overlay {
                 if showsDayNumber {
-                    Text(statistic.date, format: .dateTime.day())
-                        .font(.caption2.weight(.semibold))
+                    Text("\(Calendar.autoupdatingCurrent.component(.day, from: statistic.date))")
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(statistic.intensity == .complete ? Color.white : PlanetTheme.primaryText)
                         .minimumScaleFactor(0.7)
                 }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(statistic.date.formatted(.dateTime.year().month().day()))
+            .accessibilityLabel(statistic.date.formatted(.dateTime.year().month().day().locale(Locale(identifier: "zh_CN"))))
             .accessibilityValue(
                 statistic.plannedTaskCount == 0
                     ? "没有计划"
                     : "完成 \(statistic.completedTaskCount) / \(statistic.plannedTaskCount)"
             )
-    }
-}
-
-private struct BadgeTile: View {
-    let kind: BadgeKind
-    let earned: EarnedBadge?
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(earned == nil ? PlanetTheme.separator.opacity(0.35) : PlanetTheme.yellow.opacity(0.42))
-                Image(systemName: earned == nil ? "lock.fill" : kind.symbolName)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(earned == nil ? PlanetTheme.secondaryText : PlanetTheme.violet)
-            }
-            .frame(width: 46, height: 46)
-
-            Text(kind.title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(earned == nil ? PlanetTheme.secondaryText : PlanetTheme.primaryText)
-                .multilineTextAlignment(.center)
-                .lineLimit(2, reservesSpace: true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 104)
-        .padding(8)
-        .background(PlanetTheme.elevatedSurface.opacity(earned == nil ? 0.55 : 1))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(kind.title)
-        .accessibilityValue(earned == nil ? "尚未获得" : "已获得")
     }
 }
 

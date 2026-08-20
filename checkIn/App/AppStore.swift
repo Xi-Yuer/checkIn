@@ -21,7 +21,6 @@ final class AppStore: ObservableObject {
     @Published private(set) var habitStreaks: [UUID: Int] = [:]
     @Published private(set) var checkIns: [CheckInDTO] = []
     @Published private(set) var statistics: StatisticsSummary
-    @Published private(set) var badges: [EarnedBadge] = []
     @Published private(set) var notificationStatus: NotificationAuthorizationStatus = .notDetermined
     @Published private(set) var isLoading = false
     @Published private(set) var processingHabitIDs: Set<UUID> = []
@@ -396,14 +395,11 @@ final class AppStore: ObservableObject {
     }
 
     private func reloadDerivedState() async throws {
-        async let loadedStatistics = checkInRepository.statistics(
+        statistics = try await checkInRepository.statistics(
             period: statisticsPeriod,
             anchor: statisticsAnchor,
             now: today
         )
-        async let loadedBadges = checkInRepository.badges(through: today)
-        statistics = try await loadedStatistics
-        badges = try await loadedBadges
     }
 
     private func requestNotificationPermissionIfNeeded() async throws {

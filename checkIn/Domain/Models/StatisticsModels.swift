@@ -73,48 +73,6 @@ struct StatisticsSummary: Codable, Equatable, Sendable {
     }
 }
 
-enum BadgeKind: String, CaseIterable, Codable, Identifiable, Sendable {
-    case firstCompletion
-    case streak3
-    case streak7
-    case streak30
-    case total10
-    case total50
-    case total100
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .firstCompletion: "第一次闪耀"
-        case .streak3: "连续 3 天"
-        case .streak7: "坚持一周"
-        case .streak30: "月度恒心"
-        case .total10: "完成 10 次"
-        case .total50: "完成 50 次"
-        case .total100: "百次星光"
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .firstCompletion: "sparkles"
-        case .streak3: "flame.fill"
-        case .streak7: "star.fill"
-        case .streak30: "medal.fill"
-        case .total10: "flag.checkered"
-        case .total50: "trophy.fill"
-        case .total100: "crown.fill"
-        }
-    }
-}
-
-struct EarnedBadge: Identifiable, Codable, Equatable, Sendable {
-    var id: BadgeKind { kind }
-    let kind: BadgeKind
-    let earnedAt: Date
-}
-
 enum AppAppearance: String, CaseIterable, Codable, Identifiable, Sendable {
     case system
     case light
