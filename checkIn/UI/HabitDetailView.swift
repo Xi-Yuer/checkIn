@@ -19,12 +19,12 @@ struct HabitDetailView: View {
 
     var body: some View {
         ZStack {
-            PlanetBackground()
+            PlanetAtmosphere()
             if let habit {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 12) {
                         hero(habit)
-                        metrics(habit)
+                        info(habit)
                         todayAction(habit)
                         heatmap(habit)
                         if !habit.note.isEmpty { note(habit) }
@@ -32,7 +32,7 @@ struct HabitDetailView: View {
                     }
                     .frame(maxWidth: 720)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 18)
+                    .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
                 }
                 .refreshable { await store.loadHistory(for: habitID) }
@@ -42,10 +42,13 @@ struct HabitDetailView: View {
                     title: "这个习惯已不在轨道上",
                     message: "它可能已经被删除，返回习惯列表看看吧。"
                 )
+                .qCard()
+                .padding(.horizontal, 16)
             }
         }
         .navigationTitle("习惯详情")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -102,58 +105,54 @@ struct HabitDetailView: View {
     }
 
     private func hero(_ habit: TaskDTO) -> some View {
-        HStack(spacing: 16) {
-            HabitIconBadge(habit: habit, size: 80)
+        let streak = streakCalculator.currentStreak(
+            task: habit,
+            checkIns: habitHistory,
+            through: store.today,
+            calendar: calendar
+        )
+        let monthRate = monthlyCompletionRate(habit).formatted(.percent.precision(.fractionLength(0)))
 
-            VStack(alignment: .leading, spacing: 8) {
+        return HStack(alignment: .center, spacing: 14) {
+            HabitIconBadge(habit: habit, size: 64)
+
+            VStack(alignment: .leading, spacing: 5) {
                 Text(habit.title)
-                    .font(.title2.weight(.heavy))
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
                     .foregroundStyle(PlanetTheme.primaryText)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Text(habit.schedule.compactTitle)
-                    if habit.isArchived { Text("已暂停") }
+
+                HStack(spacing: 6) {
+                    Text("本月 \(monthRate)")
+                    Text("·")
+                    Text("累计 \(historyCountValue) 次")
+                    if habit.isArchived {
+                        Text("·")
+                        Text("已暂停")
+                            .foregroundStyle(PlanetTheme.gold)
+                    }
                 }
-                .font(.caption.weight(.semibold))
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            MascotView(mood: .ready, size: 84)
+            VStack(spacing: 1) {
+                Text("\(streak)")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                    .monospacedDigit()
+                Text("连续")
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("连续 \(streak) 天")
         }
-        .planetPanel(padding: 16)
-    }
-
-    private func metrics(_ habit: TaskDTO) -> some View {
-        HStack(spacing: 8) {
-            metric(value: "\(streakCalculator.currentStreak(task: habit, checkIns: habitHistory, through: store.today, calendar: calendar))", label: "连续天数", symbol: "flame.fill", color: PlanetTheme.coral)
-            metric(value: monthlyCompletionRate(habit).formatted(.percent.precision(.fractionLength(0))), label: "本月完成", symbol: "chart.line.uptrend.xyaxis", color: PlanetTheme.violet)
-            metric(value: "\(historyCountValue)", label: "累计打卡", symbol: "star.fill", color: PlanetTheme.gold)
-        }
-    }
-
-    private func metric(value: String, label: String, symbol: String, color: Color) -> some View {
-        VStack(spacing: 7) {
-            Image(systemName: symbol)
-                .font(.headline)
-                .foregroundStyle(color)
-            Text(value)
-                .font(.system(.title3, design: .rounded, weight: .heavy))
-                .foregroundStyle(PlanetTheme.primaryText)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(PlanetTheme.secondaryText)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, minHeight: 104)
-        .background(PlanetTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(PlanetTheme.separator.opacity(0.75), lineWidth: 1)
-        }
+        .qCard(padding: 14)
     }
 
     private func todayAction(_ habit: TaskDTO) -> some View {
@@ -161,9 +160,9 @@ struct HabitDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("今日目标")
-                        .font(.title3.weight(.heavy))
+                        .font(.system(.title3, design: .rounded, weight: .heavy))
                     Text(todayStatusText(habit))
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
                 Spacer()
@@ -171,7 +170,7 @@ struct HabitDetailView: View {
                     progress: progress?.fractionComplete ?? 0,
                     lineWidth: 7,
                     size: 66,
-                    color: Color(hex: habit.colorHex)
+                    color: PlanetTheme.mint
                 )
             }
 
@@ -181,14 +180,17 @@ struct HabitDetailView: View {
                 } label: {
                     Label("恢复这个习惯", systemImage: "play.fill")
                 }
-                .buttonStyle(PrimaryActionButtonStyle())
+                .buttonStyle(QActionButtonStyle())
             } else if scheduleService.isScheduled(habit, on: store.today, calendar: calendar) {
                 Button {
                     Task { await store.checkIn(habitID: habit.id) }
                 } label: {
-                    Label(progress?.isComplete == true ? "今日已完成" : "完成一次打卡", systemImage: progress?.isComplete == true ? "checkmark.circle.fill" : "sparkles")
+                    Label(
+                        progress?.isComplete == true ? "今日已完成" : "完成一次打卡",
+                        systemImage: progress?.isComplete == true ? "checkmark.circle.fill" : "sparkles"
+                    )
                 }
-                .buttonStyle(PrimaryActionButtonStyle())
+                .buttonStyle(QActionButtonStyle())
                 .disabled(progress?.isComplete == true || store.processingHabitIDs.contains(habit.id))
 
                 if (progress?.completed ?? 0) > 0 {
@@ -196,7 +198,7 @@ struct HabitDetailView: View {
                         Task { await store.undoLastCheckIn(habitID: habit.id) }
                     } label: {
                         Label("撤销最近一次", systemImage: "arrow.uturn.backward")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.plain)
@@ -204,24 +206,31 @@ struct HabitDetailView: View {
                 }
             } else {
                 Label("今天不是计划日", systemImage: "moon.stars.fill")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(PlanetTheme.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(PlanetTheme.elevatedSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(PlanetTheme.mutedSurface)
+                    .clipShape(Capsule())
             }
         }
-        .planetPanel()
+        .qCard()
     }
 
     private func heatmap(_ habit: TaskDTO) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(title: "最近五周", subtitle: "颜色越深，完成度越高")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("最近五周")
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text("颜色越深，完成度越高")
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+            }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
                 ForEach(orderedWeekdays) { weekday in
                     Text(weekday.shortTitle)
-                        .font(.caption2.weight(.bold))
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
                 ForEach(recentDates, id: \.self) { date in
@@ -239,25 +248,97 @@ struct HabitDetailView: View {
                 }
             }
         }
-        .planetPanel()
+        .qCard()
     }
 
     private func note(_ habit: TaskDTO) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: "写给自己的话")
+        VStack(alignment: .leading, spacing: 8) {
+            Text("写给自己的话")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
             Text(habit.note)
-                .font(.body)
+                .font(.system(.body, design: .rounded))
                 .foregroundStyle(PlanetTheme.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .planetPanel()
+        .qCard(padding: 14)
+    }
+
+    private func info(_ habit: TaskDTO) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("习惯信息")
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
+                .padding(.bottom, 4)
+
+            infoRow(symbol: "calendar", title: "重复计划", value: habit.schedule.compactTitle)
+            infoDivider
+            infoRow(symbol: "flag.fill", title: "每日目标", value: "\(habit.dailyTarget) 次")
+            infoDivider
+            infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
+            if let startDate = habit.startDate {
+                infoDivider
+                infoRow(symbol: "play.circle.fill", title: "开始日期", value: formattedDate(startDate))
+            }
+            if let endDate = habit.endDate {
+                infoDivider
+                infoRow(symbol: "flag.checkered", title: "结束日期", value: formattedDate(endDate))
+            }
+            if habit.isArchived {
+                infoDivider
+                infoRow(symbol: "pause.fill", title: "状态", value: "已暂停")
+            }
+        }
+        .qCard(padding: 14)
+    }
+
+    private func infoRow(symbol: String, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(PlanetTheme.violet)
+                .frame(width: 18)
+            Text(title)
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .foregroundStyle(PlanetTheme.secondaryText)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundStyle(PlanetTheme.primaryText)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var infoDivider: some View {
+        Rectangle()
+            .fill(PlanetTheme.separator.opacity(0.4))
+            .frame(height: 1)
+    }
+
+    private func reminderText(_ habit: TaskDTO) -> String {
+        guard habit.reminderEnabled, let hour = habit.reminderHour, let minute = habit.reminderMinute else {
+            return "未开启"
+        }
+        return String(format: "%02d:%02d", hour, minute)
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter.string(from: date)
     }
 
     @ViewBuilder
     private var badgeShelf: some View {
         if !store.badges.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                SectionTitle(title: "星光徽章")
+                Text("星光徽章")
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(store.badges) { badge in
@@ -266,18 +347,18 @@ struct HabitDetailView: View {
                                     .font(.title2.weight(.bold))
                                     .foregroundStyle(PlanetTheme.gold)
                                 Text(badge.kind.title)
-                                    .font(.caption.weight(.semibold))
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
                                     .foregroundStyle(PlanetTheme.primaryText)
                                     .lineLimit(1)
                             }
                             .frame(width: 108, height: 82)
-                            .background(PlanetTheme.elevatedSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .background(PlanetTheme.mutedSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.nest, style: .continuous))
                         }
                     }
                 }
             }
-            .planetPanel()
+            .qCard()
         }
     }
 
@@ -344,13 +425,13 @@ private struct HabitHeatmapCell: View {
     let isToday: Bool
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
             .fill(fillColor)
             .aspectRatio(1, contentMode: .fit)
             .overlay {
                 if isToday {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(PlanetTheme.violet, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(PlanetTheme.lavender, lineWidth: 2)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -359,9 +440,9 @@ private struct HabitHeatmapCell: View {
     }
 
     private var fillColor: Color {
-        guard isScheduled else { return PlanetTheme.separator.opacity(0.20) }
-        if fraction >= 1 { return PlanetTheme.violet }
-        if fraction > 0 { return PlanetTheme.lavender.opacity(0.62) }
-        return PlanetTheme.elevatedSurface
+        guard isScheduled else { return PlanetTheme.separator.opacity(0.18) }
+        if fraction >= 1 { return PlanetTheme.mint }
+        if fraction > 0 { return PlanetTheme.mint.opacity(0.42) }
+        return PlanetTheme.mutedSurface
     }
 }

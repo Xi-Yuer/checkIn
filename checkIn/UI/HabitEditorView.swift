@@ -38,84 +38,107 @@ struct HabitEditorView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                PlanetBackground()
+                PlanetAtmosphere()
+
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: 16) {
                         identitySection
                         appearanceSection
                         scheduleSection
-                        reminderSection
 
                         if let validationMessage {
                             Label(validationMessage, systemImage: "exclamationmark.circle.fill")
-                                .font(.footnote.weight(.semibold))
+                                .font(.system(.footnote, design: .rounded, weight: .semibold))
                                 .foregroundStyle(PlanetTheme.coral)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
                         }
 
                         Button(action: save) {
                             HStack(spacing: 8) {
                                 if isSaving { ProgressView().tint(.white) }
-                                Text(editingID == nil ? "点亮这个习惯" : "保存修改")
+                                Text(editingID == nil ? "保存习惯" : "保存修改")
                             }
                         }
-                        .buttonStyle(PrimaryActionButtonStyle())
+                        .buttonStyle(QActionButtonStyle())
                         .disabled(isSaving || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .padding(.top, 4)
                     }
                     .frame(maxWidth: 680)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle(editingID == nil ? "添加习惯" : "编辑习惯")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .interactiveDismissDisabled(isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                        .font(.system(.body, design: .rounded))
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存", action: save)
-                        .fontWeight(.bold)
+                        .font(.system(.body, design: .rounded, weight: .bold))
                         .disabled(isSaving || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
         .tint(PlanetTheme.violet)
+        .environment(\.locale, Locale(identifier: "zh_CN"))
+        .environment(\.calendar, chineseCalendar)
+        .presentationDragIndicator(.visible)
+    }
+
+    private var chineseCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        return calendar
     }
 
     private var identitySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(title: "习惯信息", subtitle: "名字简短一点，更容易每天看见")
+        VStack(alignment: .leading, spacing: 8) {
+            Text("习惯名称")
+                .font(.system(.title3, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
             TextField("例如：阅读 30 分钟", text: $draft.title)
+                .font(.system(.body, design: .rounded, weight: .medium))
                 .textInputAutocapitalization(.never)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 48)
-                .background(PlanetTheme.elevatedSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(PlanetTheme.separator, lineWidth: 1)
-                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 52)
+                .background(PlanetTheme.mutedSurface)
+                .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.nest, style: .continuous))
         }
-        .planetPanel()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
+        .overlay {
+            RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
+        }
     }
 
     private var appearanceSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(title: "打卡图标")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("选一个图标")
+                .font(.system(.title3, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(HabitIconCatalog.assetNames, id: \.self) { icon in
                         Button {
-                            draft.iconKey = icon
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+                                draft.iconKey = icon
+                            }
                         } label: {
                             HabitArtwork(iconKey: icon)
                                 .frame(width: 80, height: 80)
                                 .opacity(draft.iconKey == icon ? 1 : 0.42)
-                                .scaleEffect(draft.iconKey == icon ? 1.06 : 1)
+                                .scaleEffect(draft.iconKey == icon ? 1.08 : 1)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("选择打卡图标")
@@ -125,12 +148,24 @@ struct HabitEditorView: View {
             }
             .accessibilityHint("向左滑动查看更多图标")
         }
-        .planetPanel()
+        .padding(18)
+        .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
+        .overlay {
+            RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
+        }
     }
 
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(title: "打卡计划", subtitle: "只在计划日计算连续天数")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("什么时候打卡")
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text("只在计划日计算连续天数")
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+            }
 
             HStack(spacing: 8) {
                 scheduleButton(.daily, title: "每天")
@@ -139,7 +174,7 @@ struct HabitEditorView: View {
             }
 
             if scheduleType == .custom {
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     ForEach(Weekday.allCases) { weekday in
                         Button {
                             if selectedWeekdays.contains(weekday) {
@@ -149,10 +184,10 @@ struct HabitEditorView: View {
                             }
                         } label: {
                             Text(weekday.shortTitle)
-                                .font(.subheadline.weight(.bold))
+                                .font(.system(.subheadline, design: .rounded, weight: .bold))
                                 .foregroundStyle(selectedWeekdays.contains(weekday) ? Color.white : PlanetTheme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 42)
-                                .background(selectedWeekdays.contains(weekday) ? PlanetTheme.violet : PlanetTheme.elevatedSurface)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(selectedWeekdays.contains(weekday) ? PlanetTheme.lavender : PlanetTheme.mutedSurface)
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -164,55 +199,63 @@ struct HabitEditorView: View {
             Stepper(value: $draft.dailyTarget, in: 1...99) {
                 HStack {
                     Text("每日目标")
+                        .font(.system(.body, design: .rounded, weight: .medium))
                     Spacer()
                     Text("\(draft.dailyTarget) 次")
-                        .font(.body.weight(.bold))
+                        .font(.system(.body, design: .rounded, weight: .bold))
                         .foregroundStyle(PlanetTheme.violet)
                 }
             }
 
             Toggle("设置开始日期", isOn: $hasStartDate)
+                .font(.system(.body, design: .rounded, weight: .medium))
+                .tint(PlanetTheme.lavender)
             if hasStartDate {
                 DatePicker("开始", selection: $startDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
+                    .font(.system(.body, design: .rounded))
             }
             Toggle("设置结束日期", isOn: $hasEndDate)
+                .font(.system(.body, design: .rounded, weight: .medium))
+                .tint(PlanetTheme.lavender)
             if hasEndDate {
                 DatePicker("结束", selection: $endDate, in: startDate..., displayedComponents: .date)
                     .datePickerStyle(.compact)
+                    .font(.system(.body, design: .rounded))
             }
-        }
-        .planetPanel()
-    }
 
-    private var reminderSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(title: "提醒")
             Toggle(isOn: $draft.reminderEnabled) {
                 Label("打卡提醒", systemImage: "bell.fill")
+                    .font(.system(.body, design: .rounded, weight: .medium))
             }
             .tint(PlanetTheme.mint)
+
             if draft.reminderEnabled {
                 DatePicker("提醒时间", selection: $reminderTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.compact)
-                Text("首次保存时会请求系统通知权限。")
-                    .font(.caption)
-                    .foregroundStyle(PlanetTheme.secondaryText)
+                    .font(.system(.body, design: .rounded))
             }
         }
-        .planetPanel()
+        .padding(18)
+        .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
+        .overlay {
+            RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
+        }
     }
 
     private func scheduleButton(_ type: TaskScheduleType, title: String) -> some View {
         Button {
-            scheduleType = type
+            withAnimation(.easeOut(duration: 0.18)) {
+                scheduleType = type
+            }
         } label: {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(scheduleType == type ? Color.white : PlanetTheme.secondaryText)
-                .frame(maxWidth: .infinity, minHeight: 42)
-                .background(scheduleType == type ? PlanetTheme.violet : PlanetTheme.elevatedSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(scheduleType == type ? PlanetTheme.violet : PlanetTheme.mutedSurface)
+                .clipShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(scheduleType == type ? .isSelected : [])

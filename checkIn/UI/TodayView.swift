@@ -10,7 +10,6 @@ struct TodayView: View {
 
             ScrollView {
                 VStack(spacing: 18) {
-                    pageHeader
                     heroSection
                     todayContent
                 }
@@ -23,40 +22,52 @@ struct TodayView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var pageHeader: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("今日打卡")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundStyle(PlanetTheme.primaryText)
-            Text(todayCaption)
-                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                .foregroundStyle(PlanetTheme.secondaryText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 22)
-        .padding(.top, 8)
-    }
-
     private var heroSection: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let period = HomeBannerPeriod.current(at: context.date)
-            ZStack(alignment: .bottom) {
-                Image(period.assetName)
-                    .resizable()
-                    .renderingMode(.original)
-                    .scaledToFit()
-                    .frame(maxHeight: 248)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 44)
-                    .accessibilityLabel(period.accessibilityLabel)
+            ZStack(alignment: .topLeading) {
+                Color.clear
+                    .aspectRatio(3 / 2, contentMode: .fit)
+                    .overlay {
+                        Image(period.assetName)
+                            .resizable()
+                            .scaledToFill()
+                    }
+                    .clipped()
+                    .accessibilityHidden(true)
                     .id(period)
 
+                LinearGradient(
+                    colors: [
+                        PlanetTheme.background.opacity(0.82),
+                        PlanetTheme.background.opacity(0.28),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 128)
+                .allowsHitTesting(false)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("今日打卡")
+                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text(todayCaption)
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 12)
+            }
+            .overlay(alignment: .bottom) {
                 progressSummary
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 4)
+                    .offset(y: 18)
             }
+            .padding(.bottom, 34)
             .accessibilityElement(children: .contain)
+            .accessibilityLabel("今日打卡，\(period.accessibilityLabel)")
         }
     }
 

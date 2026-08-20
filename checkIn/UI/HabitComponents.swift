@@ -8,7 +8,6 @@ struct TodayHabitRow: View {
     let onCheckIn: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var completed: Int { progress?.completed ?? 0 }
     private var target: Int { progress?.target ?? habit.dailyTarget }
@@ -45,13 +44,13 @@ struct TodayHabitRow: View {
                     .accessibilityLabel("正在打卡")
             } else {
                 Button(action: onCheckIn) {
-                    checkMark
+                    CheckInProgressGauge(progress: fraction, isComplete: isComplete)
                         .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .disabled(isComplete)
-                .accessibilityLabel(isComplete ? "今日已完成" : "为\(habit.title)打卡")
+                .accessibilityLabel(checkAccessibilityLabel)
             }
         }
         .padding(.horizontal, 16)
@@ -59,29 +58,19 @@ struct TodayHabitRow: View {
         .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 104 : 88)
     }
 
-    private var checkMark: some View {
-        ZStack {
-            Circle()
-                .fill(isComplete ? PlanetTheme.mint : Color.clear)
-                .frame(width: 28, height: 28)
-            Circle()
-                .stroke(
-                    isComplete ? PlanetTheme.mint : PlanetTheme.lavender.opacity(0.55),
-                    lineWidth: 2
-                )
-                .frame(width: 28, height: 28)
-            if isComplete {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .heavy))
-                    .foregroundStyle(Color.white)
-            }
+    private var fraction: Double {
+        guard target > 0 else { return 0 }
+        return min(1, Double(completed) / Double(target))
+    }
+
+    private var checkAccessibilityLabel: String {
+        if isComplete {
+            return "今日已完成"
         }
-        .scaleEffect(isComplete && !reduceMotion ? 1.06 : 1)
-        .animation(
-            reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.34, dampingFraction: 0.62),
-            value: isComplete
-        )
-        .shadow(color: isComplete ? PlanetTheme.mint.opacity(0.28) : .clear, radius: 6, y: 2)
+        if target > 1 {
+            return "为\(habit.title)打卡，已完成 \(completed)/\(target)"
+        }
+        return "为\(habit.title)打卡"
     }
 
     private var subtitle: String {
@@ -89,6 +78,41 @@ struct TodayHabitRow: View {
             return "\(habit.scheduleAndReminderTitle) · \(completed)/\(target)"
         }
         return habit.scheduleAndReminderTitle
+    }
+}
+
+private struct CheckInProgressGauge: View {
+    let progress: Double
+    let isComplete: Bool
+
+    private let size: CGFloat = 28
+
+    var body: some View {
+        let fill = CGFloat(min(1, max(0, progress)))
+
+        ZStack {
+            Circle()
+                .stroke(
+                    progress > 0 ? PlanetTheme.mint : PlanetTheme.lavender.opacity(0.55),
+                    lineWidth: 2
+                )
+
+            Circle()
+                .fill(PlanetTheme.mint)
+                .mask(alignment: .bottom) {
+                    Rectangle()
+                        .frame(height: size * fill)
+                }
+
+            if isComplete {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Color.white)
+            }
+        }
+        .frame(width: size, height: size)
+        .shadow(color: isComplete ? PlanetTheme.mint.opacity(0.28) : .clear, radius: 6, y: 2)
+        .accessibilityHidden(true)
     }
 }
 

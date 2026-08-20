@@ -53,9 +53,6 @@ struct AppShell: View {
                 CelebrationOverlay(
                     habit: habit,
                     reduceMotion: reduceMotion,
-                    undo: {
-                        Task { await store.undoLastCheckIn(habitID: habit.id) }
-                    },
                     dismiss: store.dismissCelebration
                 )
                 .zIndex(20)

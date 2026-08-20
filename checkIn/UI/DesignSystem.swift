@@ -136,6 +136,22 @@ struct SoftCardModifier: ViewModifier {
     }
 }
 
+struct QCardModifier: ViewModifier {
+    var padding: CGFloat = 18
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(PlanetTheme.surface.opacity(0.97))
+            .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                    .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
+            }
+            .shadow(color: PlanetTheme.violet.opacity(0.08), radius: 18, y: 8)
+    }
+}
+
 extension View {
     func planetPanel(padding: CGFloat = 16) -> some View {
         modifier(PlanetPanelModifier(padding: padding))
@@ -147,6 +163,27 @@ extension View {
         shadowOpacity: Double = 0.10
     ) -> some View {
         modifier(SoftCardModifier(radius: radius, fill: fill, shadowOpacity: shadowOpacity))
+    }
+
+    func qCard(padding: CGFloat = 18) -> some View {
+        modifier(QCardModifier(padding: padding))
+    }
+}
+
+struct QActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.headline, design: .rounded, weight: .bold))
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(isEnabled ? PlanetTheme.violet : PlanetTheme.separator)
+            .clipShape(Capsule())
+            .shadow(color: isEnabled ? PlanetTheme.violet.opacity(0.22) : .clear, radius: 10, y: 4)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -315,44 +352,31 @@ struct EmptyStateView: View {
 struct CelebrationOverlay: View {
     let habit: TaskDTO
     let reduceMotion: Bool
-    let undo: () -> Void
     let dismiss: () -> Void
 
     @State private var visible = false
 
+    private let artAspect: CGFloat = 864 / 973
+
     var body: some View {
         ZStack {
-            Color.black.opacity(0.30)
+            Color.black.opacity(0.38)
                 .ignoresSafeArea()
                 .onTapGesture(perform: dismiss)
-            VStack(spacing: 18) {
-                MascotView(mood: .celebrating, size: 148)
-                VStack(spacing: 6) {
-                    Text("今日星光已点亮")
-                        .font(.title2.weight(.heavy))
-                    Text(habit.title)
-                        .font(.body)
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                }
-                HStack(spacing: 12) {
-                    Button("撤销", action: undo)
-                        .buttonStyle(.bordered)
-                        .tint(PlanetTheme.violet)
-                    Button("太棒了", action: dismiss)
-                        .buttonStyle(.borderedProminent)
-                        .tint(PlanetTheme.violet)
-                }
+
+            GeometryReader { geo in
+                let fittedWidth = fittedArtWidth(in: geo.size)
+
+                Image("CelebrationPopup")
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: fittedWidth)
+                    .overlay { contentOverlay }
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    .scaleEffect(visible ? 1 : 0.94)
+                    .opacity(visible ? 1 : 0)
             }
-            .padding(28)
-            .background(PlanetTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(PlanetTheme.separator, lineWidth: 1)
-            }
-            .padding(28)
-            .scaleEffect(visible ? 1 : 0.94)
-            .opacity(visible ? 1 : 0)
         }
         .transition(.opacity)
         .task {
@@ -360,5 +384,56 @@ struct CelebrationOverlay: View {
                 visible = true
             }
         }
+    }
+
+    private func fittedArtWidth(in size: CGSize) -> CGFloat {
+        let inset: CGFloat = size.width >= 700 ? 96 : 24
+        let maxWidth = min(size.width - inset * 2, 400)
+        let maxHeight = max(size.height - 32, 240)
+        return min(maxWidth, maxHeight * artAspect)
+    }
+
+    private var contentOverlay: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
+            let titleSize = clamped(width * 0.068, 16, 24)
+            let nameSize = clamped(width * 0.045, 12, 17)
+            let actionSize = clamped(width * 0.048, 14, 18)
+
+            Text("今日星光已点亮")
+                .font(.system(size: titleSize, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
+                .frame(width: width * 0.64)
+                .position(x: width * 0.48, y: height * 0.615)
+
+            Text(habit.title)
+                .font(.system(size: nameSize, weight: .medium, design: .rounded))
+                .foregroundStyle(PlanetTheme.secondaryText)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.7)
+                .lineLimit(2)
+                .frame(width: width * 0.62)
+                .position(x: width * 0.48, y: height * 0.69)
+
+            Button(action: dismiss) {
+                Text("太棒了")
+                    .font(.system(size: actionSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: width * 0.50, height: height * 0.105)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .position(x: width * 0.485, y: height * 0.813)
+            .accessibilityLabel("太棒了")
+        }
+        .allowsHitTesting(true)
+    }
+
+    private func clamped(_ value: CGFloat, _ minValue: CGFloat, _ maxValue: CGFloat) -> CGFloat {
+        min(maxValue, max(minValue, value))
     }
 }
