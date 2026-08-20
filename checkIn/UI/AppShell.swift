@@ -105,7 +105,7 @@ struct AppShell: View {
             .tabItem { Label(AppSection.statistics.title, systemImage: AppSection.statistics.symbolName) }
 
             navigationRoot {
-                ProfileView(store: store)
+                ProfileView(store: store, onManageHabits: { selection = .habits })
             }
             .tag(AppSection.profile)
             .tabItem { Label(AppSection.profile.title, systemImage: AppSection.profile.symbolName) }
@@ -186,7 +186,7 @@ struct AppShell: View {
         case .statistics:
             StatisticsView(store: store)
         case .profile:
-            ProfileView(store: store)
+            ProfileView(store: store, onManageHabits: { selection = .habits })
         case .add:
             TodayView(store: store, onAdd: { showingEditor = true })
         }

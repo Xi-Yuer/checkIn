@@ -15,7 +15,6 @@ struct StatisticsView: View {
                 VStack(spacing: 14) {
                     pageHeader
                     statisticsHero
-                    periodControls
                     trendPanel
                     heatmapPanel
                 }
@@ -86,8 +85,12 @@ struct StatisticsView: View {
         .padding(.horizontal, 16)
     }
 
-    private var periodControls: some View {
-        VStack(spacing: 14) {
+    private var chineseLocale: Locale { Locale(identifier: "zh_CN") }
+
+    private var trendPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            panelTitle("完成趋势", symbol: "chart.bar.fill")
+
             Picker("统计周期", selection: periodBinding) {
                 ForEach(StatisticsPeriod.allCases) { period in
                     Text(period.shortTitle).tag(period)
@@ -96,12 +99,12 @@ struct StatisticsView: View {
             .pickerStyle(.segmented)
             .font(.system(.subheadline, design: .rounded, weight: .semibold))
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button {
                     movePeriod(by: -1)
                 } label: {
                     Image(systemName: "chevron.left")
-                        .frame(width: 44, height: 44)
+                        .frame(width: 44, height: 36)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(PlanetTheme.violet)
@@ -118,67 +121,108 @@ struct StatisticsView: View {
                     movePeriod(by: 1)
                 } label: {
                     Image(systemName: "chevron.right")
-                        .frame(width: 44, height: 44)
+                        .frame(width: 44, height: 36)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(canMoveForward ? PlanetTheme.violet : PlanetTheme.separator)
                 .disabled(!canMoveForward)
                 .accessibilityLabel("下一个统计周期")
             }
-        }
-        .qCard(padding: 12)
-        .padding(.horizontal, 16)
-    }
-
-    private var chineseLocale: Locale { Locale(identifier: "zh_CN") }
-
-    private var trendPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            panelTitle("完成趋势", symbol: "chart.bar.fill")
 
             if chartPoints.isEmpty {
                 compactEmptyState("这个周期还没有计划数据", sticker: "StatsCheer")
             } else {
-                Chart(chartPoints) { point in
-                    BarMark(
-                        x: .value("日期", point.label),
-                        y: .value("完成率", point.completionRate)
-                    )
-                    .foregroundStyle(
-                        point.completionRate >= 1
-                            ? PlanetTheme.mint.gradient
-                            : PlanetTheme.violet.gradient
-                    )
-                    .cornerRadius(6)
-                    .accessibilityLabel(point.accessibilityLabel)
-                    .accessibilityValue(
-                        Text(point.completionRate, format: .percent.precision(.fractionLength(0)))
-                    )
-                }
-                .chartYScale(domain: 0...1)
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: [0.0, 0.5, 1.0]) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
-                            .foregroundStyle(PlanetTheme.separator)
-                        AxisValueLabel {
-                            if let number = value.as(Double.self) {
-                                Text(number, format: .percent.precision(.fractionLength(0)))
-                            }
-                        }
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: store.statisticsPeriod == .month ? 6 : 8)) {
-                        AxisValueLabel()
-                            .foregroundStyle(PlanetTheme.secondaryText)
-                    }
-                }
-                .frame(height: 200)
+                trendChart
             }
         }
         .qCard(padding: 16)
         .padding(.horizontal, 16)
+    }
+
+    private var trendChart: some View {
+        let plotWidth = CGFloat(max(chartPoints.count, 1)) * Self.trendSlotWidth
+
+        return ZStack(alignment: .leading) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    trendBarChart
+                        .frame(width: plotWidth, height: 200)
+                        .padding(.leading, 36)
+                        .overlay(alignment: .trailing) {
+                            Color.clear.frame(width: 1, height: 1).id("trendEnd")
+                        }
+                }
+                .onAppear { pinTrendChart(proxy) }
+                .onChange(of: intervalTitle) { _ in
+                    pinTrendChart(proxy)
+                }
+            }
+
+            trendYAxisLabels
+                .frame(width: 36, height: 168)
+                .padding(.top, 4)
+                .background(PlanetTheme.surface.opacity(0.94))
+        }
+        .frame(height: 200)
+        .id("\(store.statistics.period.rawValue)-\(intervalTitle)-\(chartPoints.count)")
+    }
+
+    private func pinTrendChart(_ proxy: ScrollViewProxy) {
+        guard store.statistics.period != .week else { return }
+        proxy.scrollTo("trendEnd", anchor: .trailing)
+    }
+
+    private var trendYAxisLabels: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text("100%")
+            Spacer()
+            Text("50%")
+            Spacer()
+            Text("0%")
+        }
+        .font(.system(size: 10, weight: .medium, design: .rounded))
+        .foregroundStyle(PlanetTheme.secondaryText)
+        .accessibilityHidden(true)
+    }
+
+    private var trendBarChart: some View {
+        Chart(chartPoints) { point in
+            BarMark(
+                x: .value("序号", point.index),
+                y: .value("完成率", point.completionRate),
+                width: .fixed(Self.trendBarWidth)
+            )
+            .foregroundStyle(
+                point.completionRate >= 1
+                    ? PlanetTheme.mint.gradient
+                    : PlanetTheme.violet.gradient
+            )
+            .cornerRadius(8)
+            .accessibilityLabel(point.accessibilityLabel)
+            .accessibilityValue(
+                Text(point.completionRate, format: .percent.precision(.fractionLength(0)))
+            )
+        }
+        .chartXScale(domain: -0.5 ... Double(max(chartPoints.count, 1)) - 0.5)
+        .chartYScale(domain: 0...1)
+        .chartYAxis {
+            AxisMarks(position: .leading, values: [0.0, 0.5, 1.0]) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+                    .foregroundStyle(PlanetTheme.separator)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: chartPoints.map(\.index)) { value in
+                AxisValueLabel {
+                    if let index = value.as(Int.self),
+                       let point = chartPoints.first(where: { $0.index == index }) {
+                        Text(point.label)
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                    }
+                }
+                .foregroundStyle(PlanetTheme.secondaryText)
+            }
+        }
     }
 
     private var heatmapPanel: some View {
@@ -191,6 +235,8 @@ struct StatisticsView: View {
 
             if store.statistics.daily.isEmpty {
                 compactEmptyState("有计划的日期会在这里留下星光", sticker: "StatsCloudPeek")
+            } else if store.statisticsPeriod == .year {
+                yearHeatmap
             } else {
                 LazyVGrid(columns: heatmapColumns, spacing: 4) {
                     ForEach(orderedWeekdaySymbols, id: \.self) { symbol in
@@ -204,7 +250,7 @@ struct StatisticsView: View {
                         if let statistic {
                             HeatmapDayView(
                                 statistic: statistic,
-                                showsDayNumber: store.statisticsPeriod != .year
+                                showsDayNumber: true
                             )
                         } else {
                             Color.clear
@@ -216,14 +262,7 @@ struct StatisticsView: View {
             }
         }
         .qCard(padding: 16)
-        .overlay(alignment: .topTrailing) {
-            if !store.statistics.daily.isEmpty {
-                statsSticker("StatsCloudPeek", height: 48)
-                    .offset(x: 6, y: -16)
-            }
-        }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
     }
 
     private var periodBinding: Binding<StatisticsPeriod> {
@@ -235,35 +274,51 @@ struct StatisticsView: View {
         )
     }
 
+    private static let trendBarWidth: CGFloat = 28
+    private static let trendSlotWidth: CGFloat = 48
+
     private var chartPoints: [StatisticsChartPoint] {
-        if store.statisticsPeriod == .year {
+        let points: [StatisticsChartPoint]
+        if store.statistics.period == .year {
             let grouped = Dictionary(grouping: store.statistics.daily) {
                 calendar.dateComponents([.year, .month], from: $0.date)
             }
-            return grouped.compactMap { components, days in
+            points = grouped.compactMap { components, days in
                 guard let date = calendar.date(from: components) else { return nil }
                 return StatisticsChartPoint(
                     id: DayKey(date: date, calendar: calendar).rawValue,
+                    index: 0,
                     label: "\(calendar.component(.month, from: date))月",
                     planned: days.reduce(0) { $0 + $1.plannedTaskCount },
                     completed: days.reduce(0) { $0 + $1.completedTaskCount }
                 )
             }
             .sorted { $0.id < $1.id }
+        } else {
+            points = store.statistics.daily.map { statistic in
+                let label: String
+                if store.statistics.period == .week {
+                    label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(chineseLocale))
+                } else {
+                    label = "\(calendar.component(.day, from: statistic.date))日"
+                }
+                return StatisticsChartPoint(
+                    id: statistic.dayKey,
+                    index: 0,
+                    label: label,
+                    planned: statistic.plannedTaskCount,
+                    completed: statistic.completedTaskCount
+                )
+            }
         }
 
-        return store.statistics.daily.map { statistic in
-            let label: String
-            if store.statisticsPeriod == .week {
-                label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(chineseLocale))
-            } else {
-                label = "\(calendar.component(.day, from: statistic.date))日"
-            }
-            return StatisticsChartPoint(
-                id: statistic.dayKey,
-                label: label,
-                planned: statistic.plannedTaskCount,
-                completed: statistic.completedTaskCount
+        return points.enumerated().map { offset, point in
+            StatisticsChartPoint(
+                id: point.id,
+                index: offset,
+                label: point.label,
+                planned: point.planned,
+                completed: point.completed
             )
         }
     }
@@ -277,6 +332,72 @@ struct StatisticsView: View {
 
     private var heatmapColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(minimum: 18, maximum: 44), spacing: 5), count: 7)
+    }
+
+    private var yearHeatmap: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 3),
+            spacing: 14
+        ) {
+            ForEach(yearMonthSnapshots) { month in
+                YearMonthHeatmapTile(month: month)
+            }
+        }
+    }
+
+    private var yearMonthSnapshots: [YearMonthSnapshot] {
+        let today = calendar.startOfDay(for: store.today)
+        let statsByKey = Dictionary(uniqueKeysWithValues: store.statistics.daily.map { ($0.dayKey, $0) })
+        let start = store.statistics.interval.start
+
+        return (0..<12).compactMap { offset in
+            guard let monthDate = calendar.date(byAdding: .month, value: offset, to: start),
+                  let monthInterval = calendar.dateInterval(of: .month, for: monthDate) else {
+                return nil
+            }
+
+            let weekday = calendar.component(.weekday, from: monthInterval.start)
+            let leadingEmpty = (weekday - calendar.firstWeekday + 7) % 7
+            var cells: [YearMonthSnapshot.Cell] = Array(
+                repeating: .padding,
+                count: leadingEmpty
+            )
+            var plannedDays = 0
+            var completedDays = 0
+            var cursor = monthInterval.start
+
+            while cursor < monthInterval.end {
+                let key = DayKey(date: cursor, calendar: calendar).rawValue
+                if cursor > today {
+                    cells.append(.future)
+                } else if let statistic = statsByKey[key] {
+                    cells.append(.day(statistic))
+                    if statistic.plannedTaskCount > 0 {
+                        plannedDays += 1
+                        if statistic.completedTaskCount >= statistic.plannedTaskCount {
+                            completedDays += 1
+                        }
+                    }
+                } else {
+                    cells.append(.future)
+                }
+                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+            }
+
+            return YearMonthSnapshot(
+                id: keyPrefix(for: monthDate),
+                title: "\(calendar.component(.month, from: monthDate))月",
+                cells: cells,
+                plannedDays: plannedDays,
+                completedDays: completedDays
+            )
+        }
+    }
+
+    private func keyPrefix(for month: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month], from: month)
+        return "\(parts.year ?? 0)-\(parts.month ?? 0)"
     }
 
     private var orderedWeekdaySymbols: [String] {
@@ -393,196 +514,312 @@ struct StatisticsView: View {
 
 struct ProfileView: View {
     @ObservedObject var store: AppStore
+    var onManageHabits: () -> Void = {}
 
     var body: some View {
-        SettingsView(store: store)
+        SettingsView(store: store, onManageHabits: onManageHabits)
     }
 }
 
 struct SettingsView: View {
     @ObservedObject var store: AppStore
+    var onManageHabits: () -> Void = {}
 
+    var body: some View {
+        ZStack {
+            PlanetAtmosphere()
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    pageHeader
+                    profileHero
+                    menuCard
+                }
+                .frame(maxWidth: 720)
+                .padding(.bottom, 28)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .task {
+            await store.refreshNotifications()
+            await store.refreshStatistics()
+        }
+    }
+
+    private var pageHeader: some View {
+        HStack {
+            Text("我的")
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
+            Spacer()
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 8)
+    }
+
+    private var profileHero: some View {
+        HStack(spacing: 14) {
+            MascotView(mood: .ready, size: 64)
+                .clipShape(Circle())
+                .overlay {
+                    Circle().stroke(Color.white.opacity(0.9), lineWidth: 2)
+                }
+                .background {
+                    Circle().fill(Color.white.opacity(0.55))
+                }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("小星星")
+                    .font(.system(.title3, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text(profileSubtitle)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(spacing: 10) {
+                Image(systemName: "star")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.violet)
+                Image(systemName: "star.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(PlanetTheme.gold)
+            }
+            .accessibilityHidden(true)
+        }
+        .padding(16)
+        .background(PlanetTheme.elevatedSurface.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous))
+        .padding(.horizontal, 16)
+    }
+
+    private var menuCard: some View {
+        VStack(spacing: 0) {
+            Button(action: onManageHabits) {
+                menuRow(title: "习惯管理", symbol: "square.grid.2x2")
+            }
+            .buttonStyle(.plain)
+
+            menuDivider
+
+            NavigationLink {
+                ReminderSettingsView(store: store)
+            } label: {
+                menuRow(title: "打卡提醒", symbol: "bell", value: reminderSummary)
+            }
+            .buttonStyle(.plain)
+
+            menuDivider
+
+            NavigationLink {
+                ThemeSettingsView(store: store)
+            } label: {
+                menuRow(title: "主题设置", symbol: "paintpalette")
+            }
+            .buttonStyle(.plain)
+
+            menuDivider
+
+            NavigationLink {
+                DataPrivacyView()
+            } label: {
+                menuRow(title: "数据备份", symbol: "archivebox")
+            }
+            .buttonStyle(.plain)
+
+            menuDivider
+
+            NavigationLink {
+                AboutCheckInView(onReplayOnboarding: store.showOnboardingAgain)
+            } label: {
+                menuRow(title: "关于我们", symbol: "info.circle")
+            }
+            .buttonStyle(.plain)
+        }
+        .qCard(padding: 6)
+        .padding(.horizontal, 16)
+    }
+
+    private var profileSubtitle: String {
+        let days = store.statistics.currentStreak > 0
+            ? store.statistics.currentStreak
+            : store.statistics.bestStreak
+        if days > 0 {
+            return "坚持打卡第 \(days) 天"
+        }
+        return "开始你的第一天打卡"
+    }
+
+    private var reminderSummary: String? {
+        let times = store.habits
+            .filter { !$0.isArchived && $0.reminderEnabled }
+            .compactMap { habit -> String? in
+                guard let hour = habit.reminderHour, let minute = habit.reminderMinute else { return nil }
+                return String(format: "%02d:%02d", hour, minute)
+            }
+            .sorted()
+        return times.first
+    }
+
+    private var menuDivider: some View {
+        Divider()
+            .overlay(PlanetTheme.separator.opacity(0.7))
+            .padding(.leading, 50)
+    }
+
+    private func menuRow(title: String, symbol: String, value: String? = nil) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(PlanetTheme.violet)
+                .frame(width: 28)
+
+            Text(title)
+                .font(.system(.body, design: .rounded, weight: .medium))
+                .foregroundStyle(PlanetTheme.primaryText)
+
+            Spacer(minLength: 8)
+
+            if let value {
+                Text(value)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PlanetTheme.separator)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 56)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct ThemeSettingsView: View {
+    @ObservedObject var store: AppStore
+
+    var body: some View {
+        ZStack {
+            PlanetAtmosphere()
+            ScrollView {
+                VStack(spacing: 0) {
+                    Toggle(isOn: soundBinding) {
+                        settingsLabel("打卡声音", symbol: "speaker.wave.2")
+                    }
+                    .tint(PlanetTheme.violet)
+                    .frame(minHeight: 52)
+
+                    Divider().overlay(PlanetTheme.separator.opacity(0.7))
+
+                    Toggle(isOn: hapticsBinding) {
+                        settingsLabel("触感反馈", symbol: "iphone.radiowaves.left.and.right")
+                    }
+                    .tint(PlanetTheme.violet)
+                    .frame(minHeight: 52)
+
+                    Divider().overlay(PlanetTheme.separator.opacity(0.7))
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        settingsLabel("外观", symbol: "circle.lefthalf.filled")
+                        Picker("外观", selection: appearanceBinding) {
+                            ForEach(AppAppearance.allCases) { appearance in
+                                Text(appearance.title).tag(appearance)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.vertical, 12)
+                }
+                .qCard(padding: 14)
+                .padding(16)
+            }
+        }
+        .navigationTitle("主题设置")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var soundBinding: Binding<Bool> {
+        Binding(get: { store.settings.soundEnabled }, set: store.setSoundEnabled)
+    }
+
+    private var hapticsBinding: Binding<Bool> {
+        Binding(get: { store.settings.hapticsEnabled }, set: store.setHapticsEnabled)
+    }
+
+    private var appearanceBinding: Binding<AppAppearance> {
+        Binding(get: { store.settings.appearance }, set: store.setAppearance)
+    }
+
+    private func settingsLabel(_ title: String, symbol: String) -> some View {
+        Label {
+            Text(title)
+                .font(.system(.body, design: .rounded, weight: .medium))
+                .foregroundStyle(PlanetTheme.primaryText)
+        } icon: {
+            Image(systemName: symbol)
+                .foregroundStyle(PlanetTheme.violet)
+                .frame(width: 24)
+        }
+    }
+}
+
+private struct ReminderSettingsView: View {
+    @ObservedObject var store: AppStore
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         ZStack {
-            PlanetBackground()
-
+            PlanetAtmosphere()
             ScrollView {
-                VStack(spacing: 16) {
-                    profileHero
-                    preferencesPanel
-                    notificationPanel
-                    informationPanel
-                }
-                .frame(maxWidth: 720)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 32)
-            }
-        }
-        .navigationTitle("我的")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await store.refreshNotifications()
-        }
-    }
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 12) {
+                        Image(systemName: notificationSymbol)
+                            .foregroundStyle(notificationColor)
+                            .frame(width: 24)
+                        Text("通知权限")
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                            .foregroundStyle(PlanetTheme.primaryText)
+                        Spacer()
+                        Text(notificationTitle)
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                            .foregroundStyle(notificationColor)
+                    }
 
-    private var profileHero: some View {
-        HStack(spacing: 18) {
-            MascotView(mood: .ready, size: 108)
-            VStack(alignment: .leading, spacing: 7) {
-                Text("小星星")
-                    .font(.system(.title2, design: .rounded, weight: .heavy))
-                    .foregroundStyle(PlanetTheme.primaryText)
-                Text(profileSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(PlanetTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                Label("\(store.habits.filter { !$0.isArchived }.count) 个习惯在培养", systemImage: "heart.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(PlanetTheme.violet)
-            }
-            Spacer(minLength: 0)
-        }
-        .planetPanel(padding: 18)
-    }
+                    Text(notificationMessage)
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
 
-    private var preferencesPanel: some View {
-        VStack(spacing: 0) {
-            settingsHeader("偏好设置", symbol: "slider.horizontal.3")
-            settingsDivider
-
-            Toggle(isOn: soundBinding) {
-                settingsLabel("打卡声音", symbol: "speaker.wave.2.fill", color: PlanetTheme.sky)
-            }
-            .tint(PlanetTheme.mint)
-            .frame(minHeight: 52)
-
-            settingsDivider
-
-            Toggle(isOn: hapticsBinding) {
-                settingsLabel("触感反馈", symbol: "waveform.path", color: PlanetTheme.coral)
-            }
-            .tint(PlanetTheme.mint)
-            .frame(minHeight: 52)
-
-            settingsDivider
-
-            VStack(alignment: .leading, spacing: 10) {
-                settingsLabel("外观", symbol: "circle.lefthalf.filled", color: PlanetTheme.violet)
-                Picker("外观", selection: appearanceBinding) {
-                    ForEach(AppAppearance.allCases) { appearance in
-                        Text(appearance.title).tag(appearance)
+                    if store.notificationStatus == .denied {
+                        Button {
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                            openURL(url)
+                        } label: {
+                            Text("前往系统设置")
+                        }
+                        .buttonStyle(QActionButtonStyle())
+                    } else {
+                        Button {
+                            Task { await store.refreshNotifications() }
+                        } label: {
+                            Text("刷新通知状态")
+                        }
+                        .buttonStyle(QActionButtonStyle())
                     }
                 }
-                .pickerStyle(.segmented)
-            }
-            .padding(.vertical, 12)
-        }
-        .planetPanel(padding: 14)
-    }
-
-    private var notificationPanel: some View {
-        VStack(spacing: 0) {
-            settingsHeader("打卡提醒", symbol: "bell.badge.fill")
-            settingsDivider
-
-            HStack(spacing: 12) {
-                settingsLabel("通知权限", symbol: notificationSymbol, color: notificationColor)
-                Spacer()
-                Text(notificationTitle)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(notificationColor)
-            }
-            .frame(minHeight: 52)
-            .accessibilityElement(children: .combine)
-
-            Text(notificationMessage)
-                .font(.caption)
-                .foregroundStyle(PlanetTheme.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 10)
-
-            if store.notificationStatus == .denied {
-                Button {
-                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    openURL(url)
-                } label: {
-                    Label("前往系统设置", systemImage: "arrow.up.right.square")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-                .tint(PlanetTheme.violet)
-            } else {
-                Button {
-                    Task { await store.refreshNotifications() }
-                } label: {
-                    Label("刷新通知状态", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-                .tint(PlanetTheme.violet)
+                .qCard(padding: 16)
+                .padding(16)
             }
         }
-        .planetPanel(padding: 14)
-    }
-
-    private var informationPanel: some View {
-        VStack(spacing: 0) {
-            NavigationLink {
-                DataPrivacyView()
-            } label: {
-                settingsNavigationRow("数据与隐私", symbol: "lock.shield.fill", color: PlanetTheme.mint)
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            NavigationLink {
-                AboutCheckInView()
-            } label: {
-                settingsNavigationRow("关于打卡小星球", symbol: "info.circle.fill", color: PlanetTheme.sky)
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            Button {
-                store.showOnboardingAgain()
-            } label: {
-                settingsNavigationRow("重看新手引导", symbol: "play.rectangle.fill", color: PlanetTheme.gold)
-            }
-            .buttonStyle(.plain)
-        }
-        .planetPanel(padding: 14)
-    }
-
-    private var soundBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.soundEnabled },
-            set: store.setSoundEnabled
-        )
-    }
-
-    private var hapticsBinding: Binding<Bool> {
-        Binding(
-            get: { store.settings.hapticsEnabled },
-            set: store.setHapticsEnabled
-        )
-    }
-
-    private var appearanceBinding: Binding<AppAppearance> {
-        Binding(
-            get: { store.settings.appearance },
-            set: store.setAppearance
-        )
-    }
-
-    private var profileSubtitle: String {
-        if store.statistics.currentStreak > 0 {
-            return "已经坚持 \(store.statistics.currentStreak) 天，继续点亮今天。"
-        }
-        return "从一个小习惯开始，积累自己的星光。"
+        .navigationTitle("打卡提醒")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await store.refreshNotifications() }
     }
 
     private var notificationTitle: String {
@@ -616,50 +853,16 @@ struct SettingsView: View {
 
     private var notificationSymbol: String {
         switch store.notificationStatus {
-        case .denied: "bell.slash.fill"
+        case .denied: "bell.slash"
         case .authorized, .provisional, .ephemeral: "bell.fill"
-        case .notDetermined: "bell.badge.fill"
+        case .notDetermined: "bell.badge"
         }
-    }
-
-    private var settingsDivider: some View {
-        Divider().overlay(PlanetTheme.separator)
-    }
-
-    private func settingsHeader(_ title: String, symbol: String) -> some View {
-        Label(title, systemImage: symbol)
-            .font(.headline)
-            .foregroundStyle(PlanetTheme.primaryText)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-    }
-
-    private func settingsLabel(_ title: String, symbol: String, color: Color) -> some View {
-        Label {
-            Text(title)
-                .font(.body)
-                .foregroundStyle(PlanetTheme.primaryText)
-        } icon: {
-            Image(systemName: symbol)
-                .foregroundStyle(color)
-                .frame(width: 24)
-        }
-    }
-
-    private func settingsNavigationRow(_ title: String, symbol: String, color: Color) -> some View {
-        HStack(spacing: 12) {
-            settingsLabel(title, symbol: symbol, color: color)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(PlanetTheme.secondaryText)
-        }
-        .contentShape(Rectangle())
-        .frame(minHeight: 52)
     }
 }
 
 private struct StatisticsChartPoint: Identifiable {
     let id: String
+    let index: Int
     let label: String
     let planned: Int
     let completed: Int
@@ -671,6 +874,95 @@ private struct StatisticsChartPoint: Identifiable {
 
     var accessibilityLabel: String {
         "\(label)，完成 \(completed) / \(planned)"
+    }
+}
+
+private struct YearMonthSnapshot: Identifiable {
+    enum Cell: Equatable {
+        case padding
+        case future
+        case day(DailyStatistic)
+    }
+
+    let id: String
+    let title: String
+    let cells: [Cell]
+    let plannedDays: Int
+    let completedDays: Int
+}
+
+private struct YearMonthHeatmapTile: View {
+    let month: YearMonthSnapshot
+
+    private let gap: CGFloat = 2
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 2) {
+                Text(month.title)
+                    .font(.system(.caption, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Text(
+                    month.plannedDays > 0
+                        ? (Double(month.completedDays) / Double(month.plannedDays))
+                            .formatted(.percent.precision(.fractionLength(0)))
+                        : " "
+                )
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.violet)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .opacity(month.plannedDays > 0 ? 1 : 0)
+            }
+            .frame(height: 18, alignment: .leading)
+
+            VStack(spacing: gap) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: gap) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                            yearDot(cell)
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(1, contentMode: .fit)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(month.title)
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var rows: [[YearMonthSnapshot.Cell]] {
+        stride(from: 0, to: month.cells.count, by: 7).map { start in
+            let slice = Array(month.cells[start..<min(start + 7, month.cells.count)])
+            return slice + Array(repeating: .padding, count: 7 - slice.count)
+        }
+    }
+
+    private var accessibilityValue: String {
+        guard month.plannedDays > 0 else { return "没有计划" }
+        return "完成 \(month.completedDays) / \(month.plannedDays) 个计划日"
+    }
+
+    private func yearDot(_ cell: YearMonthSnapshot.Cell) -> some View {
+        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+            .fill(fill(for: cell))
+    }
+
+    private func fill(for cell: YearMonthSnapshot.Cell) -> Color {
+        switch cell {
+        case .padding:
+            Color.clear
+        case .future:
+            PlanetTheme.separator.opacity(0.12)
+        case .day(let statistic):
+            statistic.plannedTaskCount == 0
+                ? PlanetTheme.separator.opacity(0.14)
+                : statistic.intensity.color
+        }
     }
 }
 
@@ -728,7 +1020,7 @@ private struct DataPrivacyView: View {
                 .padding(16)
             }
         }
-        .navigationTitle("数据与隐私")
+        .navigationTitle("数据备份")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -753,9 +1045,11 @@ private struct DataPrivacyView: View {
 }
 
 private struct AboutCheckInView: View {
+    var onReplayOnboarding: () -> Void = {}
+
     var body: some View {
         ZStack {
-            PlanetBackground()
+            PlanetAtmosphere()
             VStack(spacing: 18) {
                 MascotView(mood: .ready, size: 144)
                 VStack(spacing: 7) {
@@ -763,17 +1057,22 @@ private struct AboutCheckInView: View {
                         .font(.system(.title, design: .rounded, weight: .heavy))
                         .foregroundStyle(PlanetTheme.primaryText)
                     Text("养成好习惯，每天进步一点点")
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
                 Text("版本 \(appVersion)")
-                    .font(.caption)
+                    .font(.system(.caption, design: .rounded))
                     .foregroundStyle(PlanetTheme.secondaryText)
+
+                Button("重看新手引导", action: onReplayOnboarding)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.violet)
+                    .padding(.top, 8)
             }
             .frame(maxWidth: 420)
             .padding(28)
         }
-        .navigationTitle("关于")
+        .navigationTitle("关于我们")
         .navigationBarTitleDisplayMode(.inline)
     }
 
