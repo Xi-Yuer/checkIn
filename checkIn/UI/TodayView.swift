@@ -11,7 +11,7 @@ struct TodayView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     pageHeader
-                    heroCard
+                    heroSection
                     todayContent
                 }
                 .frame(maxWidth: 760)
@@ -37,41 +37,27 @@ struct TodayView: View {
         .padding(.top, 8)
     }
 
-    private var heroCard: some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(
-                colors: [
-                    PlanetTheme.elevatedSurface,
-                    PlanetTheme.mutedSurface,
-                    PlanetTheme.lavender.opacity(0.28)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+    private var heroSection: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let period = HomeBannerPeriod.current(at: context.date)
+            ZStack(alignment: .bottom) {
+                Image(period.assetName)
+                    .resizable()
+                    .renderingMode(.original)
+                    .scaledToFit()
+                    .frame(maxHeight: 248)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 44)
+                    .accessibilityLabel(period.accessibilityLabel)
+                    .id(period)
 
-            Image("TodayHero")
-                .resizable()
-                .renderingMode(.original)
-                .scaledToFit()
-                .frame(maxHeight: 248)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
-                .padding(.bottom, 58)
-                .accessibilityHidden(true)
-
-            progressSummary
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
+                progressSummary
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
+            .accessibilityElement(children: .contain)
         }
-        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
-                .stroke(PlanetTheme.separator.opacity(0.45), lineWidth: 1)
-        }
-        .shadow(color: PlanetTheme.violet.opacity(0.10), radius: 18, y: 8)
-        .padding(.horizontal, 16)
-        .accessibilityElement(children: .contain)
     }
 
     private var progressSummary: some View {
@@ -165,5 +151,43 @@ struct TodayView: View {
         store.overallTodayProgress.formatted(
             .percent.precision(.fractionLength(0))
         )
+    }
+}
+
+enum HomeBannerPeriod: CaseIterable {
+    case morning
+    case noon
+    case afternoon
+    case evening
+    case night
+
+    var assetName: String {
+        switch self {
+        case .morning: "BannerMorning"
+        case .noon: "BannerNoon"
+        case .afternoon: "BannerAfternoon"
+        case .evening: "BannerEvening"
+        case .night: "BannerNight"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .morning: "早晨插画"
+        case .noon: "中午插画"
+        case .afternoon: "下午插画"
+        case .evening: "晚上插画"
+        case .night: "深夜插画"
+        }
+    }
+
+    static func current(at date: Date, calendar: Calendar = .autoupdatingCurrent) -> HomeBannerPeriod {
+        switch calendar.component(.hour, from: date) {
+        case 6..<11: .morning
+        case 11..<14: .noon
+        case 14..<18: .afternoon
+        case 18..<22: .evening
+        default: .night
+        }
     }
 }
