@@ -270,14 +270,10 @@ private struct WidgetTaskLabel: View {
     var body: some View {
         let count = task.count(on: date, snapshotDayKey: snapshot.dayKey)
         HStack(spacing: 9) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(checkInHex: task.colorHex).opacity(0.16))
-                Image(systemName: task.symbolName)
-                    .font(compact ? .subheadline : .headline)
-                    .foregroundStyle(Color(checkInHex: task.colorHex))
-            }
-            .frame(width: compact ? 31 : 38, height: compact ? 31 : 38)
+            HabitArtwork(iconKey: task.symbolName)
+                .padding(HabitIconCatalog.contains(task.symbolName) ? 0 : 6)
+                .foregroundStyle(Color(checkInHex: task.colorHex))
+                .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)

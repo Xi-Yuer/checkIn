@@ -3,96 +3,75 @@ import SwiftUI
 struct TodayView: View {
     @ObservedObject var store: AppStore
     let onAdd: () -> Void
-    var onShowHabits: () -> Void = {}
 
     var body: some View {
         ZStack {
-            PlanetBackground()
+            PlanetAtmosphere()
 
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    heroSection
+                VStack(spacing: 18) {
+                    pageHeader
+                    heroCard
                     todayContent
                 }
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 20)
+                .padding(.bottom, 24)
             }
             .refreshable { await store.load() }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var heroSection: some View {
-        VStack(spacing: 0) {
-            pageHeader
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("今日打卡")
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
+            Text(todayCaption)
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .foregroundStyle(PlanetTheme.secondaryText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 22)
+        .padding(.top, 8)
+    }
+
+    private var heroCard: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(
+                colors: [
+                    PlanetTheme.elevatedSurface,
+                    PlanetTheme.mutedSurface,
+                    PlanetTheme.lavender.opacity(0.28)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
             Image("TodayHero")
                 .resizable()
                 .renderingMode(.original)
                 .scaledToFit()
-                .frame(maxWidth: 350)
-                .padding(.horizontal, 22)
-                .padding(.top, 2)
-                .padding(.bottom, 2)
+                .frame(maxHeight: 248)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 58)
                 .accessibilityHidden(true)
 
             progressSummary
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
         }
-        .background(
-            LinearGradient(
-                colors: [PlanetTheme.surface.opacity(0.25), PlanetTheme.softViolet.opacity(0.55)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-    }
-
-    private var pageHeader: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("今日打卡")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .foregroundStyle(PlanetTheme.primaryText)
-                Text(
-                    store.today,
-                    format: .dateTime
-                        .month()
-                        .day()
-                        .weekday(.wide)
-                        .locale(Locale(identifier: "zh_CN"))
-                )
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
-                    .foregroundStyle(PlanetTheme.secondaryText)
-            }
-
-            Spacer(minLength: 10)
-
-            HStack(spacing: 4) {
-                Button {
-                    Task { await store.load() }
-                } label: {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(PlanetTheme.lavender)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("刷新今日状态")
-
-                Button(action: onShowHabits) {
-                    Image(systemName: "square.grid.3x3")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("查看全部习惯")
-            }
+        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.45), lineWidth: 1)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 2)
+        .shadow(color: PlanetTheme.violet.opacity(0.10), radius: 18, y: 8)
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .contain)
     }
 
     private var progressSummary: some View {
@@ -103,18 +82,24 @@ struct TodayView: View {
             metricDivider
             metric(value: completionPercentage, label: "完成率")
         }
-        .padding(.vertical, 11)
-        .background(PlanetTheme.mutedSurface.opacity(0.78))
+        .padding(.vertical, 12)
+        .background(PlanetTheme.surface.opacity(0.94))
+        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.nest, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PlanetTheme.Radius.nest, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
+        }
+        .shadow(color: PlanetTheme.violet.opacity(0.08), radius: 10, y: 4)
         .accessibilityElement(children: .contain)
     }
 
     private func metric(value: String, label: String) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             Text(label)
                 .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.secondaryText)
             Text(value)
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
                 .foregroundStyle(PlanetTheme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -124,9 +109,9 @@ struct TodayView: View {
     }
 
     private var metricDivider: some View {
-        Rectangle()
+        Capsule()
             .fill(PlanetTheme.separator.opacity(0.55))
-            .frame(width: 1, height: 38)
+            .frame(width: 3, height: 28)
     }
 
     @ViewBuilder
@@ -140,7 +125,8 @@ struct TodayView: View {
                 action: onAdd
             )
             .frame(maxWidth: .infinity)
-            .padding(.top, 20)
+            .softCard(fill: PlanetTheme.surface.opacity(0.96), shadowOpacity: 0.08)
+            .padding(.horizontal, 16)
         } else {
             LazyVStack(spacing: 0) {
                 ForEach(Array(store.todayHabits.enumerated()), id: \.element.id) { index, habit in
@@ -153,21 +139,26 @@ struct TodayView: View {
 
                     if index < store.todayHabits.count - 1 {
                         Divider()
-                            .overlay(PlanetTheme.separator.opacity(0.48))
-                            .padding(.leading, 66)
+                            .overlay(PlanetTheme.separator.opacity(0.36))
+                            .padding(.leading, 102)
                     }
                 }
             }
-            .padding(.vertical, 4)
-            .background(PlanetTheme.surface.opacity(0.93))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(.vertical, 8)
+            .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(PlanetTheme.separator.opacity(0.34), lineWidth: 1)
+                RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous)
+                    .stroke(PlanetTheme.separator.opacity(0.4), lineWidth: 1)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
         }
+    }
+
+    private var todayCaption: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 EEEE"
+        return formatter.string(from: store.today)
     }
 
     private var completionPercentage: String {

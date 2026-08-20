@@ -103,14 +103,7 @@ struct HabitDetailView: View {
 
     private func hero(_ habit: TaskDTO) -> some View {
         HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(hex: habit.colorHex).opacity(0.16))
-                Image(systemName: habit.iconKey)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(Color(hex: habit.colorHex))
-            }
-            .frame(width: 72, height: 72)
+            HabitIconBadge(habit: habit, size: 80)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(habit.title)
@@ -118,7 +111,6 @@ struct HabitDetailView: View {
                     .foregroundStyle(PlanetTheme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Label(habit.category.title, systemImage: habit.category.symbolName)
                     Text(habit.schedule.compactTitle)
                     if habit.isArchived { Text("已暂停") }
                 }

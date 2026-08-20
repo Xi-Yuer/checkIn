@@ -8,25 +8,26 @@ struct TodayHabitRow: View {
     let onCheckIn: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var completed: Int { progress?.completed ?? 0 }
     private var target: Int { progress?.target ?? habit.dailyTarget }
     private var isComplete: Bool { progress?.isComplete ?? false }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             NavigationLink(value: habit.id) {
-                HStack(spacing: 12) {
-                    HabitIconBadge(habit: habit, size: 40)
+                HStack(spacing: 14) {
+                    HabitIconBadge(habit: habit, size: 72)
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(habit.title)
                             .font(.system(.body, design: .rounded, weight: .bold))
                             .foregroundStyle(PlanetTheme.primaryText)
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
 
                         Text(subtitle)
-                            .font(.system(.caption, design: .rounded))
+                            .font(.system(.caption, design: .rounded, weight: .medium))
                             .foregroundStyle(PlanetTheme.secondaryText)
                             .lineLimit(1)
                     }
@@ -44,9 +45,7 @@ struct TodayHabitRow: View {
                     .accessibilityLabel("正在打卡")
             } else {
                 Button(action: onCheckIn) {
-                    Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 29, weight: .semibold))
-                        .foregroundStyle(isComplete ? PlanetTheme.mint : PlanetTheme.separator)
+                    checkMark
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -55,8 +54,34 @@ struct TodayHabitRow: View {
                 .accessibilityLabel(isComplete ? "今日已完成" : "为\(habit.title)打卡")
             }
         }
-        .padding(.horizontal, 14)
-        .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 82 : 64)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 104 : 88)
+    }
+
+    private var checkMark: some View {
+        ZStack {
+            Circle()
+                .fill(isComplete ? PlanetTheme.mint : Color.clear)
+                .frame(width: 28, height: 28)
+            Circle()
+                .stroke(
+                    isComplete ? PlanetTheme.mint : PlanetTheme.lavender.opacity(0.55),
+                    lineWidth: 2
+                )
+                .frame(width: 28, height: 28)
+            if isComplete {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Color.white)
+            }
+        }
+        .scaleEffect(isComplete && !reduceMotion ? 1.06 : 1)
+        .animation(
+            reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.34, dampingFraction: 0.62),
+            value: isComplete
+        )
+        .shadow(color: isComplete ? PlanetTheme.mint.opacity(0.28) : .clear, radius: 6, y: 2)
     }
 
     private var subtitle: String {
@@ -75,22 +100,26 @@ struct HabitSummaryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 12) {
-                HabitIconBadge(habit: habit, size: 44)
+            NavigationLink(value: habit.id) {
+                HStack(spacing: 14) {
+                    HabitIconBadge(habit: habit, size: 72)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(habit.title)
-                        .font(.system(.body, design: .rounded, weight: .bold))
-                        .foregroundStyle(PlanetTheme.primaryText)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(habit.title)
+                            .font(.system(.body, design: .rounded, weight: .bold))
+                            .foregroundStyle(PlanetTheme.primaryText)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
 
-                    Text(habit.scheduleAndReminderTitle)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                        .lineLimit(1)
+                        Text(habit.scheduleAndReminderTitle)
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .foregroundStyle(PlanetTheme.secondaryText)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 1) {
@@ -100,32 +129,20 @@ struct HabitSummaryRow: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text("\(streak)")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
                         .foregroundStyle(PlanetTheme.primaryText)
                     Text("天")
                         .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
             }
-            .frame(minWidth: 50, alignment: .trailing)
+            .frame(minWidth: 44, alignment: .trailing)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(habit.isArchived ? "已暂停，曾连续 \(streak) 天" : "连续 \(streak) 天")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 94 : 84)
-        .background(PlanetTheme.elevatedSurface.opacity(0.82))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .contentShape(Rectangle())
-        .overlay {
-            NavigationLink(value: habit.id) {
-                Color.clear
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .opacity(0)
-            .accessibilityLabel(habit.title)
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 104 : 88)
     }
 }
 
@@ -133,21 +150,12 @@ struct HabitIconBadge: View {
     let habit: TaskDTO
     var size: CGFloat = 42
 
-    private var color: Color { Color(hex: habit.colorHex) }
-
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(color.opacity(0.14))
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.white.opacity(0.78), lineWidth: 1)
-            Image(systemName: habit.iconKey)
-                .font(.system(size: size * 0.46, weight: .bold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(color)
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        HabitArtwork(iconKey: habit.iconKey)
+            .padding(HabitIconCatalog.contains(habit.iconKey) ? 0 : size * 0.18)
+            .foregroundStyle(Color(hex: habit.colorHex))
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 

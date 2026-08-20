@@ -39,6 +39,13 @@ enum PlanetTheme {
         light: UIColor(red: 0.858, green: 0.823, blue: 0.941, alpha: 1),
         dark: UIColor(red: 0.251, green: 0.216, blue: 0.373, alpha: 1)
     )
+
+    enum Radius {
+        static let card: CGFloat = 26
+        static let nest: CGFloat = 22
+        static let bubble: CGFloat = 18
+        static let chip: CGFloat = 16
+    }
 }
 
 extension Color {
@@ -63,17 +70,38 @@ extension Color {
 
 struct PlanetBackground: View {
     var body: some View {
+        PlanetAtmosphere()
+    }
+}
+
+struct PlanetAtmosphere: View {
+    var body: some View {
         ZStack {
             LinearGradient(
-                colors: [PlanetTheme.surface, PlanetTheme.background],
+                colors: [PlanetTheme.elevatedSurface, PlanetTheme.background, PlanetTheme.surface],
                 startPoint: .top,
                 endPoint: .bottom
             )
+
+            Circle()
+                .fill(PlanetTheme.lavender.opacity(0.22))
+                .frame(width: 240, height: 240)
+                .blur(radius: 42)
+                .offset(x: 150, y: -90)
+                .accessibilityHidden(true)
+
+            Circle()
+                .fill(PlanetTheme.yellow.opacity(0.16))
+                .frame(width: 170, height: 170)
+                .blur(radius: 46)
+                .offset(x: -140, y: 70)
+                .accessibilityHidden(true)
+
             Starfield(
                 primaryColor: PlanetTheme.lavender,
-                accentColor: PlanetTheme.sky,
-                starCount: 18,
-                opacity: 0.09
+                accentColor: PlanetTheme.yellow,
+                starCount: 12,
+                opacity: 0.16
             )
         }
         .ignoresSafeArea()
@@ -95,9 +123,30 @@ struct PlanetPanelModifier: ViewModifier {
     }
 }
 
+struct SoftCardModifier: ViewModifier {
+    var radius: CGFloat = PlanetTheme.Radius.card
+    var fill: Color = PlanetTheme.surface
+    var shadowOpacity: Double = 0.10
+
+    func body(content: Content) -> some View {
+        content
+            .background(fill)
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .shadow(color: PlanetTheme.violet.opacity(shadowOpacity), radius: 18, y: 8)
+    }
+}
+
 extension View {
     func planetPanel(padding: CGFloat = 16) -> some View {
         modifier(PlanetPanelModifier(padding: padding))
+    }
+
+    func softCard(
+        radius: CGFloat = PlanetTheme.Radius.card,
+        fill: Color = PlanetTheme.surface,
+        shadowOpacity: Double = 0.10
+    ) -> some View {
+        modifier(SoftCardModifier(radius: radius, fill: fill, shadowOpacity: shadowOpacity))
     }
 }
 

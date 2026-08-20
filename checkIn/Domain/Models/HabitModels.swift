@@ -197,7 +197,7 @@ struct TaskDraft: Equatable, Sendable {
     var title: String = ""
     var note: String = ""
     var category: HabitCategory = .learning
-    var iconKey: String = "star.fill"
+    var iconKey: String = HabitIconCatalog.defaultAssetName
     var colorHex: String = "#A788FA"
     var priority: TaskPriority = .normal
     var schedule: TaskSchedule = .daily
@@ -212,7 +212,7 @@ struct TaskDraft: Equatable, Sendable {
         title: String = "",
         note: String = "",
         category: HabitCategory = .learning,
-        iconKey: String = "star.fill",
+        iconKey: String = HabitIconCatalog.defaultAssetName,
         colorHex: String = "#A788FA",
         priority: TaskPriority = .normal,
         schedule: TaskSchedule = .daily,

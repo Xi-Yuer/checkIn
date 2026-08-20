@@ -17,13 +17,6 @@ struct HabitEditorView: View {
     @State private var validationMessage: String?
     @State private var isSaving = false
 
-    private let icons = [
-        "star.fill", "sun.max.fill", "book.fill", "figure.run",
-        "drop.fill", "bed.double.fill", "heart.fill", "dumbbell.fill",
-        "pencil", "music.note", "leaf.fill", "brain.head.profile"
-    ]
-    private let colors = ["#A788FA", "#7C3AED", "#34D399", "#7DD3FC", "#FDBA74", "#FDE68A", "#FB7185"]
-
     init(store: AppStore, habit: TaskDTO? = nil) {
         self.store = store
         editingID = habit?.id
@@ -52,7 +45,6 @@ struct HabitEditorView: View {
                         appearanceSection
                         scheduleSection
                         reminderSection
-                        noteSection
 
                         if let validationMessage {
                             Label(validationMessage, systemImage: "exclamationmark.circle.fill")
@@ -107,73 +99,31 @@ struct HabitEditorView: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(PlanetTheme.separator, lineWidth: 1)
                 }
-            HStack {
-                Text("分类")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Picker("分类", selection: $draft.category) {
-                    ForEach(HabitCategory.allCases) { category in
-                        Label(category.title, systemImage: category.symbolName).tag(category)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-            HStack {
-                Text("优先级")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Picker("优先级", selection: $draft.priority) {
-                    ForEach(TaskPriority.allCases) { priority in
-                        Text(priority.title).tag(priority)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
         }
         .planetPanel()
     }
 
     private var appearanceSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SectionTitle(title: "图标与颜色")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: 10)], spacing: 10) {
-                ForEach(icons, id: \.self) { icon in
-                    Button {
-                        draft.iconKey = icon
-                    } label: {
-                        Image(systemName: icon)
-                            .font(.system(size: 19, weight: .bold))
-                            .foregroundStyle(draft.iconKey == icon ? Color.white : Color(hex: draft.colorHex))
-                            .frame(width: 46, height: 46)
-                            .background(draft.iconKey == icon ? Color(hex: draft.colorHex) : PlanetTheme.elevatedSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("选择\(icon)图标")
-                    .accessibilityAddTraits(draft.iconKey == icon ? .isSelected : [])
-                }
-            }
-            HStack(spacing: 12) {
-                ForEach(colors, id: \.self) { hex in
-                    Button {
-                        draft.colorHex = hex
-                    } label: {
-                        ZStack {
-                            Circle().fill(Color(hex: hex))
-                            if draft.colorHex == hex {
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.black))
-                                    .foregroundStyle(Color.white)
-                            }
+            SectionTitle(title: "打卡图标")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(HabitIconCatalog.assetNames, id: \.self) { icon in
+                        Button {
+                            draft.iconKey = icon
+                        } label: {
+                            HabitArtwork(iconKey: icon)
+                                .frame(width: 80, height: 80)
+                                .opacity(draft.iconKey == icon ? 1 : 0.42)
+                                .scaleEffect(draft.iconKey == icon ? 1.06 : 1)
                         }
-                        .frame(width: 36, height: 36)
-                        .frame(minWidth: 44, minHeight: 44)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("选择打卡图标")
+                        .accessibilityAddTraits(draft.iconKey == icon ? .isSelected : [])
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("选择颜色 \(hex)")
-                    .accessibilityAddTraits(draft.colorHex == hex ? .isSelected : [])
                 }
             }
+            .accessibilityHint("向左滑动查看更多图标")
         }
         .planetPanel()
     }
@@ -249,25 +199,6 @@ struct HabitEditorView: View {
                     .font(.caption)
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
-        }
-        .planetPanel()
-    }
-
-    private var noteSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title: "给未来的自己", subtitle: "可选，最多 500 字")
-            TextEditor(text: $draft.note)
-                .frame(minHeight: 110)
-                .scrollContentBackground(.hidden)
-                .padding(10)
-                .background(PlanetTheme.elevatedSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(alignment: .bottomTrailing) {
-                    Text("\(draft.note.count)/500")
-                        .font(.caption2)
-                        .foregroundStyle(draft.note.count > 500 ? PlanetTheme.coral : PlanetTheme.secondaryText)
-                        .padding(8)
-                }
         }
         .planetPanel()
     }
