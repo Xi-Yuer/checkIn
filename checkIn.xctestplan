@@ -27,7 +27,6 @@
       }
     },
     {
-      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:checkIn.xcodeproj",
         "identifier" : "7A0000000000000000000102",

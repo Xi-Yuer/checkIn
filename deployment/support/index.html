@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="打卡小星球技术支持：常见问题、通知与桌面小组件排查、数据与隐私说明。">
+  <title>技术支持｜打卡小星球</title>
+  <style>
+    :root{--night:#10231f;--green:#195f4d;--mint:#9ed8bd;--cream:#f6f0e2;--paper:#fffdf7;--ink:#1b2925;--muted:#64716c;--line:rgba(27,41,37,.14)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--cream);font-family:"Avenir Next","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7}
+    .hero{position:relative;overflow:hidden;min-height:430px;padding:68px max(24px,calc((100vw - 1000px)/2));color:#f9f5e9;background:var(--night)}
+    .hero:after{content:"";position:absolute;right:-90px;bottom:-190px;width:530px;height:530px;border:1px solid rgba(158,216,189,.35);border-radius:50%;box-shadow:0 0 0 62px rgba(158,216,189,.06),0 0 0 124px rgba(158,216,189,.04)}
+    .orbit{position:absolute;right:15%;top:74px;width:14px;height:14px;border-radius:50%;background:var(--mint);box-shadow:0 0 28px var(--mint)}
+    .kicker{margin:0 0 18px;color:var(--mint);font-size:.75rem;font-weight:800;letter-spacing:.17em;text-transform:uppercase}
+    h1{max-width:700px;margin:0;font-family:Georgia,"Songti SC",serif;font-size:clamp(3rem,8vw,6rem);font-weight:500;line-height:1;letter-spacing:-.05em}
+    .intro{max-width:620px;margin:28px 0 0;color:#cad8d2;font-size:clamp(1rem,2vw,1.22rem)}
+    .wrap{width:min(1000px,calc(100% - 32px));margin:-58px auto 80px;position:relative;z-index:2}
+    .quick{display:grid;grid-template-columns:repeat(3,1fr);border-radius:18px;overflow:hidden;background:var(--paper);box-shadow:0 24px 70px rgba(20,44,37,.14)}
+    .quick a{min-height:154px;padding:26px;color:inherit;text-decoration:none;border-right:1px solid var(--line);transition:.2s ease}.quick a:last-child{border:0}.quick a:hover{color:var(--green);background:#f4f8f1;transform:translateY(-2px)}
+    .num{display:block;margin-bottom:16px;color:var(--green);font:800 .75rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}.quick strong{display:block;font-size:1.05rem}.quick span:last-child{display:block;margin-top:4px;color:var(--muted);font-size:.88rem}
+    main{margin-top:58px;display:grid;grid-template-columns:230px 1fr;gap:56px}.aside{position:sticky;top:24px;align-self:start}.aside p{margin:0 0 14px;color:var(--muted);font-size:.83rem}.badge{display:inline-block;padding:7px 10px;border:1px solid var(--line);border-radius:999px;color:var(--green);font-size:.76rem;font-weight:700}
+    section{padding:0 0 42px;margin:0 0 38px;border-bottom:1px solid var(--line)}section:last-child{border:0}h2{margin:0 0 20px;font-family:Georgia,"Songti SC",serif;font-size:clamp(1.7rem,4vw,2.5rem);font-weight:500;letter-spacing:-.025em}
+    details{background:rgba(255,253,247,.55);border:1px solid var(--line);border-radius:12px;margin:10px 0;padding:0 18px}summary{padding:17px 0;cursor:pointer;font-weight:700;list-style:none}summary::-webkit-details-marker{display:none}summary:after{content:"＋";float:right;color:var(--green)}details[open] summary:after{content:"−"}details p,details ol{margin:0 0 18px;color:#4e5d57}ol{padding-left:1.25rem}li+li{margin-top:7px}
+    .contact{padding:28px;border-radius:16px;color:#eef6f0;background:var(--green)}.contact h2{margin-bottom:10px}.contact p{color:#d9e9df}.template{padding:15px;border:1px solid rgba(255,255,255,.25);border-radius:10px;font:500 .82rem/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-line}
+    footer{padding-top:18px;color:var(--muted);font-size:.82rem}footer a{color:var(--green);text-underline-offset:3px}
+    @media(max-width:720px){.hero{min-height:390px;padding-top:48px}.wrap{margin-top:-38px}.quick{grid-template-columns:1fr}.quick a{min-height:0;border-right:0;border-bottom:1px solid var(--line)}main{grid-template-columns:1fr;gap:28px}.aside{position:static}}
+    @media(prefers-color-scheme:dark){:root{--cream:#101713;--paper:#18221e;--ink:#f2eee2;--muted:#abb7b0;--line:rgba(242,238,226,.13);--green:#78c9a7}.quick a:hover{background:#1d2a25}details{background:rgba(255,255,255,.025)}details p,details ol{color:#c5cec9}.contact{background:#174d40}}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <span class="orbit" aria-hidden="true"></span>
+    <p class="kicker">Check-in Planet · Support</p>
+    <h1>技术支持</h1>
+    <p class="intro">遇到问题了吗？这里整理了打卡小星球最常见的设置与排查方法。你的习惯数据保存在设备本地，我们无法在服务器端查看它。</p>
+  </header>
+
+  <div class="wrap">
+    <nav class="quick" aria-label="快速入口">
+      <a href="#notifications"><span class="num">01</span><strong>提醒没有出现</strong><span>检查系统通知与任务计划</span></a>
+      <a href="#widget"><span class="num">02</span><strong>小组件未更新</strong><span>刷新桌面上的今日状态</span></a>
+      <a href="#data"><span class="num">03</span><strong>数据与隐私</strong><span>了解本地存储和删除方式</span></a>
+    </nav>
+
+    <main>
+      <aside class="aside"><p>适用于</p><span class="badge">iOS 16 及以上</span><p style="margin-top:20px">当前版本</p><span class="badge">1.0</span></aside>
+      <div>
+        <section id="notifications">
+          <h2>通知与提醒</h2>
+          <details open><summary>习惯提醒没有出现</summary><ol><li>打开 iPhone 或 iPad 的“设置 → 通知 → 打卡小星球”。</li><li>确认“允许通知”已开启，并选择需要的提醒样式。</li><li>回到 App，打开对应习惯，确认提醒开关、时间和计划日期正确。</li><li>专注模式或定时摘要可能延后通知，请检查相关系统设置。</li></ol></details>
+          <details><summary>如何关闭提醒？</summary><p>在 App 中编辑对应习惯并关闭提醒，可只关闭该习惯的通知；也可以在系统通知设置中关闭 App 的全部通知。</p></details>
+        </section>
+
+        <section id="widget">
+          <h2>桌面小组件</h2>
+          <details open><summary>小组件显示的状态没有更新</summary><ol><li>先打开一次打卡小星球，等待今日状态加载完成。</li><li>回到桌面等待片刻，iOS 会根据系统调度刷新小组件。</li><li>如果仍未更新，可长按小组件将其移除，然后重新添加。</li><li>确认 App 与小组件均为最新版本，并尝试重新启动设备。</li></ol></details>
+          <details><summary>怎样选择小组件关注的习惯？</summary><p>长按桌面上的打卡小星球小组件，选择“编辑小组件”，然后选择需要关注的习惯。可用选项取决于当前已创建的习惯。</p></details>
+        </section>
+
+        <section id="data">
+          <h2>数据与隐私</h2>
+          <details open><summary>数据保存在哪里？</summary><p>习惯、备注、打卡记录和统计保存在当前设备本地，不会上传至开发者服务器。当前版本不提供账号、云同步或跨设备恢复。</p></details>
+          <details><summary>如何删除数据？</summary><p>你可以在 App 内删除单个习惯和相关记录；卸载 App 会删除其本地数据。开发者不持有这些数据，因此无法代为恢复或删除。</p></details>
+          <p>完整说明请阅读<a href="/checkin/privacy/">《打卡小星球隐私政策》</a>。</p>
+        </section>
+
+        <section class="contact" id="contact">
+          <h2>仍然需要帮助？</h2>
+          <p>请通过 App Store 产品页面中的“App 支持”进入本页，并使用该页面所列的开发者联系渠道反馈。为便于定位问题，建议附上以下信息，但请勿发送习惯名称、备注等私人内容。</p>
+          <div class="template">App 版本：1.0
+iOS / iPadOS 版本：
+设备型号：
+问题发生步骤：
+是否可以稳定复现：</div>
+        </section>
+      </div>
+    </main>
+
+    <footer>© 2026 打卡小星球 · <a href="/checkin/privacy/">隐私政策</a> · 页面不使用 Cookie 或分析工具</footer>
+  </div>
+</body>
+</html>

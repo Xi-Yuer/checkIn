@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="打卡小星球隐私政策：了解本应用如何在设备本地处理任务、打卡记录与提醒数据。">
+  <title>隐私政策｜打卡小星球</title>
+  <style>
+    :root {
+      --paper: #f6f1e7;
+      --paper-deep: #ebe1cf;
+      --ink: #202521;
+      --muted: #697067;
+      --accent: #12634f;
+      --line: rgba(32, 37, 33, .16);
+      --card: rgba(255, 253, 247, .72);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 2%, rgba(255,255,255,.92), transparent 30rem),
+        linear-gradient(145deg, var(--paper), var(--paper-deep));
+      font-family: Georgia, "Noto Serif SC", "Songti SC", "STSong", serif;
+      line-height: 1.85;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .3;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+    }
+    .page { width: min(940px, calc(100% - 32px)); margin: 0 auto; padding: 72px 0 88px; }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: end; padding-bottom: 34px; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 8px; color: var(--accent); font: 700 .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; max-width: 680px; font-size: clamp(2.5rem, 7vw, 5.6rem); font-weight: 500; line-height: .98; letter-spacing: -.055em; }
+    .language { align-self: start; border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; color: var(--muted); font: 600 .78rem/1.2 ui-sans-serif, sans-serif; text-decoration: none; transition: .2s ease; }
+    .language:hover { color: var(--accent); border-color: var(--accent); transform: translateY(-1px); }
+    .lede { max-width: 700px; margin: 32px 0 42px; font-size: clamp(1.08rem, 2.5vw, 1.38rem); color: #3e473f; }
+    .promise { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin: 0 0 54px; border: 1px solid var(--line); border-radius: 18px; background: var(--line); }
+    .promise div { min-height: 132px; padding: 24px; background: var(--card); }
+    .promise strong { display: block; margin-bottom: 8px; color: var(--accent); font-size: 1.1rem; }
+    .promise span { color: var(--muted); font-size: .92rem; }
+    main { counter-reset: section; }
+    section { display: grid; grid-template-columns: 56px 1fr; gap: 14px; padding: 30px 0; border-top: 1px solid var(--line); }
+    section::before { counter-increment: section; content: "0" counter(section); color: var(--accent); font: 700 .8rem/2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    h2 { margin: 0 0 10px; font-size: clamp(1.25rem, 3vw, 1.65rem); font-weight: 600; line-height: 1.35; }
+    p { margin: 0 0 12px; }
+    ul { margin: 8px 0 0; padding-left: 1.25em; }
+    li + li { margin-top: 8px; }
+    code { padding: .15em .4em; border-radius: 5px; background: rgba(18,99,79,.08); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+    footer { margin-top: 28px; padding-top: 26px; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 24px, 940px); padding: 42px 0 60px; }
+      header { grid-template-columns: 1fr; }
+      .language { justify-self: start; }
+      .promise { grid-template-columns: 1fr; }
+      .promise div { min-height: 0; }
+      section { grid-template-columns: 38px 1fr; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --paper: #161b18; --paper-deep: #0d110f; --ink: #f2ecdf; --muted: #acb4aa; --accent: #83d6ba; --line: rgba(242,236,223,.14); --card: rgba(255,255,255,.035); }
+      .lede { color: #ced3ca; }
+    }
+    @media print { body::before { display: none; } .page { padding: 0; } .language { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <p class="eyebrow">打卡小星球 · iOS</p>
+        <h1>隐私政策</h1>
+      </div>
+      <a class="language" href="#english" lang="en">English ↓</a>
+    </header>
+
+    <p class="lede">我们相信，最好的隐私保护是尽量少收集数据。打卡小星球是一款本地优先的习惯打卡应用：你的习惯与记录留在你的设备上。</p>
+
+    <div class="promise" aria-label="隐私摘要">
+      <div><strong>不建立账号</strong><span>无需注册、登录或提供姓名、邮箱、手机号。</span></div>
+      <div><strong>不追踪用户</strong><span>没有广告、分析 SDK，也不会跨 App 或网站追踪。</span></div>
+      <div><strong>不上传记录</strong><span>任务、备注、打卡历史与统计不发送到开发者服务器。</span></div>
+    </div>
+
+    <main>
+      <section><div><h2>适用范围</h2><p>本政策适用于 iOS 应用“打卡小星球”（Bundle ID：<code>com.xiaoyuer.checkIn</code>）、其桌面小组件以及 App Intent 扩展。</p></div></section>
+      <section><div><h2>我们处理的数据</h2><p>为了提供习惯管理功能，App 会在你的设备本地处理你主动创建或产生的数据，包括习惯名称、备注、计划、提醒设置、打卡记录以及由这些记录计算出的连续天数和统计结果。</p><p>当前版本不要求账号，不收集身份信息、联系信息、位置、通讯录、照片、健康数据、支付信息或广告标识符。</p></div></section>
+      <section><div><h2>数据如何存储</h2><p>主要数据保存在 App 的本地存储中。桌面小组件和 App Intent 通过 Apple 提供的 App Group，在同一设备上读取必要的今日状态快照。该快照仅用于显示和完成你选择的打卡操作，不会发送给开发者。</p></div></section>
+      <section><div><h2>通知权限</h2><p>只有当你主动为习惯开启提醒时，App 才会请求系统通知权限。提醒由 iOS 在设备本地调度。你可以随时在“设置 → 通知 → 打卡小星球”中关闭权限。</p></div></section>
+      <section><div><h2>网络、第三方与追踪</h2><p>当前版本不包含业务网络请求，不使用第三方广告、分析或用户画像服务，也不出售或共享你的个人数据。访问本隐私政策网页时，托管服务和网络基础设施可能为安全和稳定运行而短期处理常规技术日志（例如 IP 地址、访问时间和浏览器信息）；本页面不设置 Cookie，也不加载第三方资源。</p></div></section>
+      <section><div><h2>数据保留与删除</h2><p>本地数据会一直保留，直到你在 App 中删除相关内容或卸载 App。由于开发者不持有这些本地数据，无法代你访问、导出或删除。卸载前请确认你不再需要其中的记录。</p></div></section>
+      <section><div><h2>儿童隐私</h2><p>App 不会有意收集儿童的个人信息。由于当前版本不收集个人数据，我们也不会基于年龄建立用户档案。</p></div></section>
+      <section><div><h2>政策变更与联系</h2><p>如果功能或数据处理方式发生变化，我们会更新本页面并修改生效日期。若对本政策有疑问，请通过 App Store 产品页面所列的开发者联系方式与我们联系。</p><p><strong>生效日期：</strong>2026 年 8 月 21 日</p></div></section>
+
+      <section id="english" lang="en"><div><h2>English Summary</h2><p>Check-in Planet is a local-first habit tracker. Habit names, notes, schedules, reminders, check-in history, streaks, and statistics are processed and stored on your device. The app requires no account, contains no advertising or analytics SDK, does not track you, and does not upload your habit data to the developer.</p><p>Notification permission is requested only when you enable a reminder, and reminders are scheduled locally by iOS. Widgets and App Intents access a minimal on-device snapshot through Apple App Groups. You may delete data in the app or by uninstalling it. Questions may be sent through the developer contact listed on the App Store product page.</p><p><strong>Effective:</strong> August 21, 2026</p></div></section>
+    </main>
+
+    <footer>© 2026 打卡小星球 · 本页面不使用 Cookie、分析工具或第三方资源。</footer>
+  </div>
+</body>
+</html>
