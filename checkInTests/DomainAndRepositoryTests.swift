@@ -79,6 +79,68 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(summary.completionRate, 2.0 / 3.0, accuracy: 0.001)
     }
 
+    func testChartPadsIncompleteWeekMonthAndYearFromPreviousPeriod() {
+        let task = makeTask(schedule: .daily, dailyTarget: 1, startDate: date(2025, 1, 1))
+        let calculator = StatisticsCalculator()
+
+        let week = calculator.summary(
+            tasks: [task],
+            checkIns: [],
+            period: .week,
+            anchor: now,
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertEqual(week.daily.map(\.dayKey), ["2026-08-17", "2026-08-18", "2026-08-19"])
+        XCTAssertEqual(week.chartDaily.count, 7)
+        XCTAssertEqual(week.chartDaily.first?.dayKey, "2026-08-13")
+        XCTAssertEqual(week.chartDaily.last?.dayKey, "2026-08-19")
+
+        let month = calculator.summary(
+            tasks: [task],
+            checkIns: [],
+            period: .month,
+            anchor: now,
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertEqual(month.daily.count, 19)
+        XCTAssertEqual(month.chartDaily.count, 31)
+        XCTAssertEqual(month.chartDaily.first?.dayKey, "2026-07-20")
+        XCTAssertEqual(month.chartDaily.last?.dayKey, "2026-08-19")
+
+        let year = calculator.summary(
+            tasks: [task],
+            checkIns: [],
+            period: .year,
+            anchor: now,
+            now: now,
+            calendar: calendar
+        )
+        let yearMonths = Dictionary(grouping: year.chartDaily) {
+            calendar.dateComponents([.year, .month], from: $0.date)
+        }
+        XCTAssertEqual(yearMonths.count, 12)
+        XCTAssertEqual(year.chartDaily.first?.dayKey, "2025-09-01")
+        XCTAssertEqual(year.chartDaily.last?.dayKey, "2026-08-19")
+    }
+
+    func testChartDoesNotPadCompletedPastWeek() {
+        let task = makeTask(schedule: .daily, startDate: date(2026, 7, 1))
+        let pastWeek = date(2026, 7, 15)
+        let summary = StatisticsCalculator().summary(
+            tasks: [task],
+            checkIns: [],
+            period: .week,
+            anchor: pastWeek,
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertEqual(summary.daily.count, 7)
+        XCTAssertEqual(summary.chartDaily.count, 7)
+        XCTAssertEqual(summary.daily.map(\.dayKey), summary.chartDaily.map(\.dayKey))
+    }
+
     func testPlanRevisionsPreserveHistoricalTargetsAndExposePartialProgress() {
         var task = makeTask(schedule: .daily, dailyTarget: 1, startDate: date(2026, 8, 17))
         task.createdDayKey = "2026-08-17"

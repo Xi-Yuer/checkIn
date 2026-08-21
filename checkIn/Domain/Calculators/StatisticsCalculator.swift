@@ -41,33 +41,26 @@ struct StatisticsCalculator: Sendable {
         }
 
         let totals = eventTotals(checkIns)
-        var daily: [DailyStatistic] = []
-        var cursor = requestedInterval.start
-
-        for _ in 0..<400 where cursor <= lastIncludedDay {
-            let key = DayKey(date: cursor, calendar: calendar).rawValue
-            let planned = tasks.filter {
-                schedule.isScheduled($0, on: cursor, calendar: calendar)
-            }
-            let completed = planned.reduce(into: 0) { count, task in
-                let target = schedule.dailyTarget(for: task, on: cursor, calendar: calendar)
-                if totals[task.id]?[key, default: 0] ?? 0 >= target { count += 1 }
-            }
-            let progressed = planned.reduce(into: 0) { count, task in
-                if totals[task.id]?[key, default: 0] ?? 0 > 0 { count += 1 }
-            }
-            daily.append(
-                DailyStatistic(
-                    dayKey: key,
-                    date: cursor,
-                    plannedTaskCount: planned.count,
-                    completedTaskCount: completed,
-                    progressedTaskCount: progressed
-                )
-            )
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
-        }
+        let daily: [DailyStatistic] = days(
+            from: requestedInterval.start,
+            through: lastIncludedDay,
+            tasks: tasks,
+            totals: totals,
+            calendar: calendar
+        )
+        let chartRange = chartRange(
+            period: period,
+            interval: requestedInterval,
+            lastIncludedDay: lastIncludedDay,
+            calendar: calendar
+        )
+        let chartDaily = days(
+            from: chartRange.start,
+            through: lastIncludedDay,
+            tasks: tasks,
+            totals: totals,
+            calendar: calendar
+        )
 
         let plannedCount = daily.reduce(0) { $0 + $1.plannedTaskCount }
         let completedCount = daily.reduce(0) { $0 + $1.completedTaskCount }
@@ -85,8 +78,81 @@ struct StatisticsCalculator: Sendable {
             completedTaskDays: completedCount,
             currentStreak: streaks.map(\.0).max() ?? 0,
             bestStreak: streaks.map(\.1).max() ?? 0,
-            daily: daily
+            daily: daily,
+            chartDaily: chartDaily
         )
+    }
+
+    private func days(
+        from start: Date,
+        through end: Date,
+        tasks: [TaskDTO],
+        totals: [UUID: [String: Int]],
+        calendar: Calendar
+    ) -> [DailyStatistic] {
+        var daily: [DailyStatistic] = []
+        var cursor = calendar.startOfDay(for: start)
+        let last = calendar.startOfDay(for: end)
+        guard cursor <= last else { return [] }
+
+        for _ in 0..<400 where cursor <= last {
+            daily.append(dayStatistic(on: cursor, tasks: tasks, totals: totals, calendar: calendar))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return daily
+    }
+
+    private func dayStatistic(
+        on date: Date,
+        tasks: [TaskDTO],
+        totals: [UUID: [String: Int]],
+        calendar: Calendar
+    ) -> DailyStatistic {
+        let key = DayKey(date: date, calendar: calendar).rawValue
+        let planned = tasks.filter {
+            schedule.isScheduled($0, on: date, calendar: calendar)
+        }
+        let completed = planned.reduce(into: 0) { count, task in
+            let target = schedule.dailyTarget(for: task, on: date, calendar: calendar)
+            if totals[task.id]?[key, default: 0] ?? 0 >= target { count += 1 }
+        }
+        let progressed = planned.reduce(into: 0) { count, task in
+            if totals[task.id]?[key, default: 0] ?? 0 > 0 { count += 1 }
+        }
+        return DailyStatistic(
+            dayKey: key,
+            date: date,
+            plannedTaskCount: planned.count,
+            completedTaskCount: completed,
+            progressedTaskCount: progressed
+        )
+    }
+
+    private func chartRange(
+        period: StatisticsPeriod,
+        interval: DateInterval,
+        lastIncludedDay: Date,
+        calendar: Calendar
+    ) -> DateInterval {
+        let dayAfterLast = calendar.date(byAdding: .day, value: 1, to: lastIncludedDay) ?? lastIncludedDay
+        let start: Date
+        switch period {
+        case .week:
+            start = calendar.date(byAdding: .day, value: -6, to: lastIncludedDay) ?? interval.start
+        case .month:
+            let monthLength = calendar.range(of: .day, in: .month, for: interval.start)?.count ?? 30
+            start = calendar.date(byAdding: .day, value: -(monthLength - 1), to: lastIncludedDay)
+                ?? interval.start
+        case .year:
+            if let monthStart = calendar.dateInterval(of: .month, for: lastIncludedDay)?.start,
+               let twelveMonthsAgo = calendar.date(byAdding: .month, value: -11, to: monthStart) {
+                start = twelveMonthsAgo
+            } else {
+                start = interval.start
+            }
+        }
+        return DateInterval(start: start, end: dayAfterLast)
     }
 
     private func eventTotals(_ checkIns: [CheckInDTO]) -> [UUID: [String: Int]] {

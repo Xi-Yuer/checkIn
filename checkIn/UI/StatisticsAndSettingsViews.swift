@@ -79,8 +79,8 @@ struct StatisticsView: View {
         .padding(.trailing, 96)
         .qCard(padding: 16)
         .overlay(alignment: .bottomTrailing) {
-            statsSticker("StatsAstronaut", height: 128)
-                .offset(x: -2, y: 8)
+            statsSticker("StatsClipboard", height: 100)
+                .offset(y: -8)
         }
         .padding(.horizontal, 16)
     }
@@ -280,7 +280,7 @@ struct StatisticsView: View {
     private var chartPoints: [StatisticsChartPoint] {
         let points: [StatisticsChartPoint]
         if store.statistics.period == .year {
-            let grouped = Dictionary(grouping: store.statistics.daily) {
+            let grouped = Dictionary(grouping: store.statistics.chartDaily) {
                 calendar.dateComponents([.year, .month], from: $0.date)
             }
             points = grouped.compactMap { components, days in
@@ -295,7 +295,7 @@ struct StatisticsView: View {
             }
             .sorted { $0.id < $1.id }
         } else {
-            points = store.statistics.daily.map { statistic in
+            points = store.statistics.chartDaily.map { statistic in
                 let label: String
                 if store.statistics.period == .week {
                     label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(chineseLocale))
@@ -548,60 +548,60 @@ struct SettingsView: View {
     }
 
     private var pageHeader: some View {
-        HStack {
-            Text("我的")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundStyle(PlanetTheme.primaryText)
-            Spacer()
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("我的")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text(profileSubtitle)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            Spacer(minLength: 8)
+            Image("StatsMoon")
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(height: 42)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
     }
 
     private var profileHero: some View {
-        HStack(spacing: 14) {
-            MascotView(mood: .ready, size: 64)
-                .clipShape(Circle())
-                .overlay {
-                    Circle().stroke(Color.white.opacity(0.9), lineWidth: 2)
-                }
-                .background {
-                    Circle().fill(Color.white.opacity(0.55))
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("小星星")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("小星星")
-                    .font(.system(.title3, design: .rounded, weight: .heavy))
-                    .foregroundStyle(PlanetTheme.primaryText)
-                Text(profileSubtitle)
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
-                    .foregroundStyle(PlanetTheme.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+            Text("和这颗小星球一起慢慢变亮")
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .foregroundStyle(PlanetTheme.secondaryText)
+
+            HStack(spacing: 8) {
+                profileChip(value: "\(activeHabitCount)", label: "习惯")
+                profileChip(value: "\(currentStreak)", label: "连续")
+                profileChip(value: "\(bestStreak)", label: "最佳")
             }
-
-            Spacer(minLength: 8)
-
-            VStack(spacing: 10) {
-                Image(systemName: "star")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(PlanetTheme.violet)
-                Image(systemName: "star.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(PlanetTheme.gold)
-            }
-            .accessibilityHidden(true)
         }
-        .padding(16)
-        .background(PlanetTheme.elevatedSurface.opacity(0.95))
-        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.card, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 96)
+        .qCard(padding: 16)
+        .overlay(alignment: .bottomTrailing) {
+            MascotView(mood: .ready, size: 118)
+                .offset(x: 6, y: 12)
+                .accessibilityHidden(true)
+        }
         .padding(.horizontal, 16)
     }
 
     private var menuCard: some View {
         VStack(spacing: 0) {
             Button(action: onManageHabits) {
-                menuRow(title: "习惯管理", symbol: "square.grid.2x2")
+                menuRow(title: "习惯管理", symbol: "square.grid.2x2", tint: PlanetTheme.violet)
             }
             .buttonStyle(.plain)
 
@@ -610,7 +610,12 @@ struct SettingsView: View {
             NavigationLink {
                 ReminderSettingsView(store: store)
             } label: {
-                menuRow(title: "打卡提醒", symbol: "bell", value: reminderSummary)
+                menuRow(
+                    title: "打卡提醒",
+                    symbol: "bell.fill",
+                    tint: PlanetTheme.gold,
+                    value: reminderSummary
+                )
             }
             .buttonStyle(.plain)
 
@@ -619,7 +624,7 @@ struct SettingsView: View {
             NavigationLink {
                 ThemeSettingsView(store: store)
             } label: {
-                menuRow(title: "主题设置", symbol: "paintpalette")
+                menuRow(title: "主题设置", symbol: "paintpalette.fill", tint: PlanetTheme.lavender)
             }
             .buttonStyle(.plain)
 
@@ -628,7 +633,7 @@ struct SettingsView: View {
             NavigationLink {
                 DataPrivacyView()
             } label: {
-                menuRow(title: "数据备份", symbol: "archivebox")
+                menuRow(title: "数据备份", symbol: "archivebox.fill", tint: PlanetTheme.mint)
             }
             .buttonStyle(.plain)
 
@@ -637,20 +642,27 @@ struct SettingsView: View {
             NavigationLink {
                 AboutCheckInView(onReplayOnboarding: store.showOnboardingAgain)
             } label: {
-                menuRow(title: "关于我们", symbol: "info.circle")
+                menuRow(title: "关于我们", symbol: "sparkles", tint: PlanetTheme.sky)
             }
             .buttonStyle(.plain)
         }
-        .qCard(padding: 6)
+        .qCard(padding: 8)
         .padding(.horizontal, 16)
     }
 
+    private var activeHabitCount: Int {
+        store.habits.filter { !$0.isArchived }.count
+    }
+
+    private var currentStreak: Int { store.statistics.currentStreak }
+    private var bestStreak: Int { store.statistics.bestStreak }
+
     private var profileSubtitle: String {
-        let days = store.statistics.currentStreak > 0
-            ? store.statistics.currentStreak
-            : store.statistics.bestStreak
-        if days > 0 {
-            return "坚持打卡第 \(days) 天"
+        if currentStreak > 0 {
+            return "坚持打卡第 \(currentStreak) 天"
+        }
+        if bestStreak > 0 {
+            return "曾经连续 \(bestStreak) 天"
         }
         return "开始你的第一天打卡"
     }
@@ -668,34 +680,60 @@ struct SettingsView: View {
 
     private var menuDivider: some View {
         Divider()
-            .overlay(PlanetTheme.separator.opacity(0.7))
-            .padding(.leading, 50)
+            .overlay(PlanetTheme.separator.opacity(0.55))
+            .padding(.leading, 66)
     }
 
-    private func menuRow(title: String, symbol: String, value: String? = nil) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: symbol)
-                .font(.system(size: 18, weight: .regular))
-                .foregroundStyle(PlanetTheme.violet)
-                .frame(width: 28)
+    private func profileChip(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(.headline, design: .rounded, weight: .heavy))
+                .foregroundStyle(PlanetTheme.primaryText)
+            Text(label)
+                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                .foregroundStyle(PlanetTheme.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(PlanetTheme.mutedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: PlanetTheme.Radius.chip, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) \(value)")
+    }
+
+    private func menuRow(title: String, symbol: String, tint: Color, value: String? = nil) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(tint.opacity(0.16))
+                    .frame(width: 40, height: 40)
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
 
             Text(title)
-                .font(.system(.body, design: .rounded, weight: .medium))
+                .font(.system(.body, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.primaryText)
 
             Spacer(minLength: 8)
 
             if let value {
                 Text(value)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(PlanetTheme.secondaryText)
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(PlanetTheme.violet)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(PlanetTheme.softViolet)
+                    .clipShape(Capsule())
             }
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(PlanetTheme.separator)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .frame(minHeight: 56)
         .contentShape(Rectangle())
     }

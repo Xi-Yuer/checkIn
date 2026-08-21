@@ -53,6 +53,7 @@ struct StatisticsSummary: Codable, Equatable, Sendable {
     let currentStreak: Int
     let bestStreak: Int
     let daily: [DailyStatistic]
+    let chartDaily: [DailyStatistic]
 
     var completionRate: Double {
         guard plannedTaskDays > 0 else { return 0 }
@@ -68,7 +69,8 @@ struct StatisticsSummary: Codable, Equatable, Sendable {
             completedTaskDays: 0,
             currentStreak: 0,
             bestStreak: 0,
-            daily: []
+            daily: [],
+            chartDaily: []
         )
     }
 }
