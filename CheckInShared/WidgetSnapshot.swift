@@ -3,11 +3,13 @@ import Foundation
 public enum CheckInSharedConstants {
     public static let appGroupIdentifier = "group.com.xiaoyuer.checkIn"
     public static let widgetKind = "CheckInWidget"
+    public static let focusedWidgetKind = "FocusedCheckInWidget"
     public static let snapshotFileName = "widget_snapshot_v1.json"
+    public static let pendingActionsFileName = "widget_pending_checkins_v1.json"
     public static let carouselIndexKey = "widget.carouselIndex"
     public static let supportedSnapshotVersion = 1
-    public static let maximumTaskCount = 20
-    public static let maximumSnapshotBytes = 20 * 1_024
+    public static let maximumTaskCount = 200
+    public static let maximumSnapshotBytes = 512 * 1_024
 }
 
 public enum WidgetFrequencyKind: String, Codable, CaseIterable, Sendable {
@@ -130,6 +132,31 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
             result.1 += task.dailyGoal
         }
     }
+
+    public func focusedTask(selectedIdentifier: String?) -> WidgetFocusedTaskResolution {
+        let activeTasks = tasks
+            .filter { !$0.isPaused }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
+                return lhs.id.uuidString < rhs.id.uuidString
+            }
+        if let selectedIdentifier {
+            guard let id = UUID(uuidString: selectedIdentifier),
+                  let task = activeTasks.first(where: { $0.id == id }) else {
+                return .invalidSelection
+            }
+            return .task(task)
+        }
+        if activeTasks.count == 1, let task = activeTasks.first { return .task(task) }
+        return activeTasks.isEmpty ? .noHabits : .chooseHabit
+    }
+}
+
+public enum WidgetFocusedTaskResolution: Equatable, Sendable {
+    case task(WidgetTaskSnapshot)
+    case chooseHabit
+    case noHabits
+    case invalidSelection
 }
 
 public enum WidgetSnapshotReadResult: Equatable, Sendable {
@@ -201,6 +228,41 @@ public struct AppGroupWidgetSnapshotStore: WidgetSnapshotStore, Sendable {
             throw WidgetSnapshotStoreError.snapshotTooLarge
         }
         try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    @discardableResult
+    public func incrementCompletedCount(taskID: UUID, at date: Date) throws -> WidgetSnapshot? {
+        guard let fileURL, let containerURL else { throw WidgetSnapshotStoreError.appGroupUnavailable }
+        var result: Result<WidgetSnapshot?, Error>?
+        let coordinator = NSFileCoordinator()
+        var coordinationError: NSError?
+        coordinator.coordinate(writingItemAt: containerURL, options: .forMerging, error: &coordinationError) { _ in
+            result = Result {
+                guard let data = try? Data(contentsOf: fileURL),
+                      var snapshot = try? decoder.decode(WidgetSnapshot.self, from: data),
+                      snapshot.version == CheckInSharedConstants.supportedSnapshotVersion,
+                      snapshot.dayKey == WidgetDayKey.string(from: date),
+                      let index = snapshot.tasks.firstIndex(where: { $0.id == taskID }) else {
+                    return nil
+                }
+                let task = snapshot.tasks[index]
+                guard !task.isPaused,
+                      task.schedule.isScheduled(on: date),
+                      task.completedCount < task.dailyGoal else { return snapshot }
+                snapshot.tasks[index].completedCount += 1
+                let updatedData = try encoder.encode(snapshot)
+                guard updatedData.count <= CheckInSharedConstants.maximumSnapshotBytes else {
+                    throw WidgetSnapshotStoreError.snapshotTooLarge
+                }
+                try updatedData.write(
+                    to: fileURL,
+                    options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+                )
+                return snapshot
+            }
+        }
+        if coordinationError != nil { throw WidgetSnapshotStoreError.appGroupUnavailable }
+        return try result?.get()
     }
 
     private var fileURL: URL? {

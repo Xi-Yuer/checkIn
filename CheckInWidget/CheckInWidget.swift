@@ -1,4 +1,5 @@
 import AppIntents
+import Intents
 import SwiftUI
 import WidgetKit
 
@@ -19,6 +20,7 @@ private enum WidgetL10n {
 @main
 struct CheckInWidgetBundle: WidgetBundle {
     var body: some Widget {
+        FocusedHabitWidget()
         CheckInWidget()
     }
 }
@@ -32,7 +34,7 @@ struct CheckInWidget: Widget {
             CheckInWidgetView(entry: entry)
         }
         .configurationDisplayName("打卡小星球")
-        .description("查看今天的习惯进度和下一项任务。")
+        .description("查看今天的整体习惯进度。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
@@ -121,19 +123,267 @@ struct CheckInWidgetView: View {
     }
 
     private var unavailable: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("打卡小星球", systemImage: "sparkles")
-                .font(.headline)
-                .foregroundStyle(CheckInWidgetPalette.brand)
-            Spacer(minLength: 0)
-            Text("打开 App 更新今日习惯")
-                .font(.subheadline.weight(.semibold))
-            Text("数据仅保存在你的设备")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Image("WidgetMediumCatV2")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 142, height: 88, alignment: .trailing)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("打开 App 更新今日习惯")
+                    .font(.headline.bold())
+                    .foregroundStyle(.primary)
+                Text("数据仅保存在你的设备")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+struct FocusedHabitWidget: Widget {
+    var body: some WidgetConfiguration {
+        IntentConfiguration(
+            kind: CheckInSharedConstants.focusedWidgetKind,
+            intent: FocusedHabitConfigurationIntent.self,
+            provider: FocusedHabitTimelineProvider()
+        ) { entry in
+            FocusedHabitWidgetView(entry: entry)
+        }
+        .configurationDisplayName("重点打卡")
+        .description("把最在乎的一个习惯放在桌面。")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+struct FocusedHabitTimelineEntry: TimelineEntry {
+    let date: Date
+    let state: FocusedHabitWidgetState
+}
+
+enum FocusedHabitWidgetState {
+    case habit(WidgetSnapshot, WidgetTaskSnapshot)
+    case chooseHabit
+    case noHabits
+    case invalidSelection
+    case unavailable
+}
+
+struct FocusedHabitTimelineProvider: IntentTimelineProvider {
+    typealias Intent = FocusedHabitConfigurationIntent
+    typealias Entry = FocusedHabitTimelineEntry
+
+    private let store = AppGroupWidgetSnapshotStore()
+
+    func placeholder(in context: Context) -> Entry {
+        let snapshot = WidgetSnapshot.preview
+        return Entry(date: Date(), state: .habit(snapshot, snapshot.tasks[1]))
+    }
+
+    func getSnapshot(
+        for configuration: FocusedHabitConfigurationIntent,
+        in context: Context,
+        completion: @escaping (Entry) -> Void
+    ) {
+        completion(entry(at: Date(), configuration: configuration, allowPreview: context.isPreview))
+    }
+
+    func getTimeline(
+        for configuration: FocusedHabitConfigurationIntent,
+        in context: Context,
+        completion: @escaping (Timeline<Entry>) -> Void
+    ) {
+        let start = Date()
+        let entries = (0..<8).map { offset in
+            let date = Calendar.autoupdatingCurrent.date(byAdding: .hour, value: offset * 3, to: start) ?? start
+            return entry(at: date, configuration: configuration, allowPreview: false)
+        }
+        completion(Timeline(entries: entries, policy: .after(entries.last?.date ?? start)))
+    }
+
+    private func entry(
+        at date: Date,
+        configuration: FocusedHabitConfigurationIntent,
+        allowPreview: Bool
+    ) -> Entry {
+        let snapshot: WidgetSnapshot
+        switch store.load(now: date) {
+        case .available(let value):
+            snapshot = value
+        case .missing where allowPreview:
+            snapshot = .preview
+        case .missing, .corrupted, .unsupportedVersion, .expired:
+            return Entry(date: date, state: .unavailable)
+        }
+
+        switch snapshot.focusedTask(selectedIdentifier: configuration.habit?.identifier) {
+        case .task(let task):
+            return Entry(date: date, state: .habit(snapshot, task))
+        case .chooseHabit:
+            return Entry(date: date, state: .chooseHabit)
+        case .noHabits:
+            return Entry(date: date, state: .noHabits)
+        case .invalidSelection:
+            return Entry(date: date, state: .invalidSelection)
+        }
+    }
+}
+
+private struct FocusedHabitWidgetView: View {
+    let entry: FocusedHabitTimelineEntry
+
+    var body: some View {
+        Group {
+            switch entry.state {
+            case .habit(let snapshot, let task):
+                habitContent(snapshot: snapshot, task: task)
+            case .chooseHabit:
+                messageState(title: "选择一个目标", detail: "长按小组件进行编辑")
+            case .noHabits:
+                Link(destination: CheckInDeepLink.today.url) {
+                    messageState(title: "添加第一个目标", detail: "从一个小目标开始")
+                }
+                .buttonStyle(.plain)
+            case .invalidSelection:
+                messageState(title: "请重新选择目标", detail: "长按小组件进行编辑")
+            case .unavailable:
+                Link(destination: CheckInDeepLink.today.url) {
+                    messageState(title: "打开 App 更新", detail: "数据仅保存在你的设备")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .checkInWidgetBackground()
+    }
+
+    private func habitContent(snapshot: WidgetSnapshot, task: WidgetTaskSnapshot) -> some View {
+        let count = task.count(on: entry.date, snapshotDayKey: snapshot.dayKey)
+        let isScheduled = task.schedule.isScheduled(on: entry.date)
+        let isComplete = count >= task.dailyGoal
+
+        return ZStack(alignment: .bottomTrailing) {
+            HabitArtwork(iconKey: task.symbolName)
+                .frame(width: 120, height: 120)
+                .offset(x: 16, y: -8)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Link(destination: CheckInDeepLink.task(task.id).url) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.title)
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text("\(count)/\(task.dailyGoal)")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                if !isScheduled {
+                    statusButton("今天休息", background: Color.secondary.opacity(0.18), foreground: .secondary)
+                } else if isComplete {
+                    statusButton("今天完成啦", background: CheckInWidgetPalette.mint, foreground: .white)
+                } else if #available(iOSApplicationExtension 17.0, *) {
+                    Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
+                        statusButton("打卡 +1", background: CheckInWidgetPalette.button, foreground: .white)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Link(destination: CheckInDeepLink.task(task.id).url) {
+                        statusButton("打开打卡", background: CheckInWidgetPalette.button, foreground: .white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(task.title)，\(count)/\(task.dailyGoal)")
+    }
+
+    private func messageState(title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {
+        VStack(spacing: 6) {
+            Image("WidgetMediumCatV2")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 132, height: 72, alignment: .trailing)
+                .accessibilityHidden(true)
+            VStack(spacing: 3) {
+                Text(title)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func statusButton(
+        _ title: LocalizedStringKey,
+        background: Color,
+        foreground: Color
+    ) -> some View {
+        Text(title)
+            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+@available(iOS 17.0, *)
+struct RecordFocusedCheckInIntent: AppIntent {
+    static var title: LocalizedStringResource = "重点习惯打卡"
+    static var description = IntentDescription("为重点习惯完成一次打卡。")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "习惯 ID")
+    var taskID: String
+
+    init() {}
+
+    init(taskID: UUID) {
+        self.taskID = taskID.uuidString
+    }
+
+    func perform() async throws -> some IntentResult {
+        guard let id = UUID(uuidString: taskID) else { return .result() }
+        let snapshotStore = AppGroupWidgetSnapshotStore()
+        guard case .available(let snapshot) = snapshotStore.load(now: Date()),
+              let task = snapshot.tasks.first(where: { $0.id == id }),
+              !task.isPaused,
+              task.schedule.isScheduled(on: Date()),
+              task.count(on: Date(), snapshotDayKey: snapshot.dayKey) < task.dailyGoal else {
+            return .result()
+        }
+
+        let action = WidgetPendingCheckIn(taskID: id)
+        let actionStore = AppGroupWidgetPendingCheckInStore()
+        if try actionStore.enqueue(action, maximumPendingForTask: task.dailyGoal) {
+            _ = try? snapshotStore.incrementCompletedCount(taskID: id, at: action.occurredAt)
+            WidgetCenter.shared.reloadTimelines(ofKind: CheckInSharedConstants.focusedWidgetKind)
+            WidgetCenter.shared.reloadTimelines(ofKind: CheckInSharedConstants.widgetKind)
+        }
+        return .result()
     }
 }
 
@@ -144,38 +394,48 @@ private struct SmallCheckInWidget: View {
 
     var body: some View {
         let progress = snapshot.progress(on: date)
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(CheckInWidgetPalette.sun)
-                Text("今日打卡")
-                    .font(.headline)
+        let nextTask = tasks.first(where: { task in
+            task.count(on: date, snapshotDayKey: snapshot.dayKey) < task.dailyGoal
+        }) ?? tasks.first
+
+        ZStack(alignment: .bottomTrailing) {
+            Image("WidgetMediumCatV2")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 88)
+                .offset(x: 14, y: 8)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(WidgetChineseDate.line(date))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Text("\(progress.completed)/\(progress.goal)")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+
                 Spacer(minLength: 0)
-                Text(progressText(progress))
-                    .font(.caption.bold())
-                    .foregroundStyle(CheckInWidgetPalette.brand)
-            }
 
-            ProgressView(value: Double(progress.completed), total: Double(max(progress.goal, 1)))
-                .tint(CheckInWidgetPalette.mint)
-
-            Spacer(minLength: 0)
-
-            if let task = tasks.first(where: { task in
-                task.count(on: date, snapshotDayKey: snapshot.dayKey) < task.dailyGoal
-            }) ?? tasks.first {
-                Link(destination: CheckInDeepLink.task(task.id).url) {
-                    WidgetTaskLabel(task: task, snapshot: snapshot, date: date, compact: true)
+                if let nextTask {
+                    HStack(spacing: 6) {
+                        HabitArtwork(iconKey: nextTask.symbolName)
+                            .frame(width: 22, height: 22)
+                        Text(nextTask.title)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                    .padding(.trailing, 52)
+                } else {
+                    Text("今天完成啦")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
                 }
-                .buttonStyle(.plain)
-            } else {
-                CompleteState()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-    }
-
-    private func progressText(_ progress: (completed: Int, goal: Int)) -> String {
-        progress.goal == 0 ? "0/0" : "\(progress.completed)/\(progress.goal)"
     }
 }
 
@@ -186,39 +446,59 @@ private struct MediumCheckInWidget: View {
     let carouselOffset: Int
 
     var body: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("打卡小星球", systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundStyle(CheckInWidgetPalette.brand)
-                Spacer(minLength: 0)
-                if tasks.isEmpty {
-                    CompleteState()
-                } else {
-                    Link(destination: CheckInDeepLink.task(currentTask.id).url) {
-                        WidgetTaskLabel(task: currentTask, snapshot: snapshot, date: date, compact: false)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+        let progress = snapshot.progress(on: date)
+        ZStack(alignment: .bottomTrailing) {
+            Image("WidgetMediumCatV2")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 108)
+                .offset(x: 18, y: 10)
+                .accessibilityHidden(true)
 
-            VStack(spacing: 9) {
-                OverallProgress(snapshot: snapshot, date: date)
-                if #available(iOSApplicationExtension 17.0, *) {
-                    Button(intent: AdvanceWidgetTaskIntent()) {
-                        Label("下一项", systemImage: "chevron.right")
-                            .font(.caption.bold())
+            VStack(alignment: .leading, spacing: 6) {
+                Text(WidgetChineseDate.line(date))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Text("\(progress.completed)/\(progress.goal)")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+
+                HStack(spacing: 8) {
+                    if tasks.isEmpty {
+                        Text("今天完成啦")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    } else {
+                        HabitArtwork(iconKey: currentTask.symbolName)
+                            .frame(width: 28, height: 28)
+                        Link(destination: CheckInDeepLink.task(currentTask.id).url) {
+                            Text(currentTask.title)
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(CheckInWidgetPalette.brand)
-                } else {
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(CheckInWidgetPalette.brand.opacity(0.8))
-                        .accessibilityLabel("打开 App 查看下一项")
+
+                    if #available(iOSApplicationExtension 17.0, *), !tasks.isEmpty {
+                        Button(intent: AdvanceWidgetTaskIntent()) {
+                            Text("下一项")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(CheckInWidgetPalette.button)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(CheckInWidgetPalette.button.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .padding(.trailing, 72)
             }
-            .frame(width: 84)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 
@@ -234,122 +514,87 @@ private struct MediumCheckInWidget: View {
     }
 }
 
+private enum WidgetChineseDate {
+    static let locale = Locale(identifier: "zh_CN")
+
+    static func line(_ date: Date) -> String {
+        date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(locale))
+    }
+}
+
+private struct WidgetCompactTaskRow: View {
+    let task: WidgetTaskSnapshot
+    let snapshot: WidgetSnapshot
+    let date: Date
+
+    var body: some View {
+        let count = task.count(on: date, snapshotDayKey: snapshot.dayKey)
+        let done = count >= task.dailyGoal
+        HStack(spacing: 8) {
+            HabitArtwork(iconKey: task.symbolName)
+                .frame(width: 26, height: 26)
+            Text(task.title)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            Text("\(count)/\(task.dailyGoal)")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(done ? CheckInWidgetPalette.mint : .secondary)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+    }
+}
+
 private struct LargeCheckInWidget: View {
     let snapshot: WidgetSnapshot
     let tasks: [WidgetTaskSnapshot]
     let date: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("打卡小星球", systemImage: "sparkles")
-                    .font(.title3.bold())
-                    .foregroundStyle(CheckInWidgetPalette.brand)
-                Spacer()
-                OverallProgress(snapshot: snapshot, date: date)
-                    .frame(width: 92)
-            }
+        let progress = snapshot.progress(on: date)
+        let finished = tasks.filter { $0.count(on: date, snapshotDayKey: snapshot.dayKey) >= $0.dailyGoal }.count
 
-            Divider()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(WidgetChineseDate.line(date))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("\(progress.completed)/\(progress.goal)")
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .monospacedDigit()
+                    Text(tasks.isEmpty ? "今天完成啦" : "已完成 \(finished)/\(tasks.count) 项")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 4)
+
+                Image("WidgetLargeHeroV2")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 92, height: 72)
+                    .accessibilityHidden(true)
+            }
 
             if tasks.isEmpty {
-                Spacer(minLength: 0)
-                CompleteState()
-                    .frame(maxWidth: .infinity)
-                Spacer(minLength: 0)
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ForEach(Array(tasks.prefix(3))) { task in
-                    Link(destination: CheckInDeepLink.task(task.id).url) {
-                        WidgetTaskLabel(task: task, snapshot: snapshot, date: date, compact: false)
-                            .padding(.vertical, 4)
+                VStack(spacing: 2) {
+                    ForEach(Array(tasks.prefix(5))) { task in
+                        Link(destination: CheckInDeepLink.task(task.id).url) {
+                            WidgetCompactTaskRow(task: task, snapshot: snapshot, date: date)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-
-            Text("继续保持，每天进步一点点")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
-    }
-}
-
-private struct WidgetTaskLabel: View {
-    let task: WidgetTaskSnapshot
-    let snapshot: WidgetSnapshot
-    let date: Date
-    let compact: Bool
-
-    var body: some View {
-        let count = task.count(on: date, snapshotDayKey: snapshot.dayKey)
-        HStack(spacing: 9) {
-            HabitArtwork(iconKey: task.symbolName)
-                .padding(HabitIconCatalog.contains(task.symbolName) ? 0 : 6)
-                .foregroundStyle(Color(checkInHex: task.colorHex))
-                .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(compact ? .caption.bold() : .subheadline.bold())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text("\(count) / \(task.dailyGoal)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            Image(systemName: count >= task.dailyGoal ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(count >= task.dailyGoal ? CheckInWidgetPalette.mint : .secondary)
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            WidgetL10n.format("%@，已完成 %d 次，目标 %d 次", task.title, count, task.dailyGoal)
-        )
-    }
-}
-
-private struct OverallProgress: View {
-    let snapshot: WidgetSnapshot
-    let date: Date
-
-    var body: some View {
-        let progress = snapshot.progress(on: date)
-        let ratio = progress.goal == 0 ? 0 : Double(progress.completed) / Double(progress.goal)
-        VStack(spacing: 5) {
-            ZStack {
-                Circle()
-                    .stroke(CheckInWidgetPalette.brand.opacity(0.14), lineWidth: 7)
-                Circle()
-                    .trim(from: 0, to: min(max(ratio, 0), 1))
-                    .stroke(CheckInWidgetPalette.brand, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                Text("\(Int((ratio * 100).rounded()))%")
-                    .font(.caption2.bold())
-            }
-            .frame(width: 54, height: 54)
-            Text("今日进度")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-private struct CompleteState: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("今天完成啦", systemImage: "star.fill")
-                .font(.subheadline.bold())
-                .foregroundStyle(CheckInWidgetPalette.sun)
-            Text("去收获一颗小星星")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -370,10 +615,8 @@ struct AdvanceWidgetTaskIntent: AppIntent {
 }
 
 private enum CheckInWidgetPalette {
-    static let brand = Color(checkInHex: "7C3AED")
+    static let button = Color(checkInHex: "6D4AFF")
     static let mint = Color(checkInHex: "34D399")
-    static let sun = Color(checkInHex: "FDBA74")
-    static let background = Color(checkInHex: "F7F3FF")
 }
 
 private extension View {
@@ -381,11 +624,11 @@ private extension View {
     func checkInWidgetBackground() -> some View {
         if #available(iOSApplicationExtension 17.0, *) {
             containerBackground(for: .widget) {
-                CheckInWidgetPalette.background
+                Color.clear
             }
         } else {
             padding()
-                .background(CheckInWidgetPalette.background)
+                .background(Color.clear)
         }
     }
 }

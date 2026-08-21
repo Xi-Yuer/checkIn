@@ -38,7 +38,8 @@ protocol CheckInRepository: Sendable {
         taskID: UUID,
         at date: Date,
         value: Int,
-        source: CheckInSource
+        source: CheckInSource,
+        eventID: UUID?
     ) async throws -> DailyProgress
 
     func undoLastCheckIn(taskID: UUID, on date: Date) async throws -> DailyProgress
@@ -49,4 +50,15 @@ protocol CheckInRepository: Sendable {
     func streak(taskID: UUID, through date: Date) async throws -> Int
     func streaks(taskIDs: [UUID], through date: Date) async throws -> [UUID: Int]
     func statistics(period: StatisticsPeriod, anchor: Date, now: Date) async throws -> StatisticsSummary
+}
+
+extension CheckInRepository {
+    func checkIn(
+        taskID: UUID,
+        at date: Date,
+        value: Int,
+        source: CheckInSource
+    ) async throws -> DailyProgress {
+        try await checkIn(taskID: taskID, at: date, value: value, source: source, eventID: nil)
+    }
 }

@@ -14,7 +14,8 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
         taskID: UUID,
         at date: Date,
         value: Int = 1,
-        source: CheckInSource = .app
+        source: CheckInSource = .app,
+        eventID: UUID? = nil
     ) async throws -> DailyProgress {
         guard value > 0 else { throw RepositoryError.invalidValue }
         let calendar = calendar
@@ -29,13 +30,26 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             }
 
             let key = DayKey(date: date, calendar: calendar).rawValue
+            if let eventID {
+                let duplicateRequest = CheckInEntity.fetchRequest()
+                duplicateRequest.predicate = NSPredicate(format: "id == %@", eventID as CVarArg)
+                duplicateRequest.fetchLimit = 1
+                if try context.fetch(duplicateRequest).first != nil {
+                    return DailyProgress(
+                        taskID: taskID,
+                        date: date,
+                        completed: try Self.total(taskID: taskID, dayKey: key, context: context),
+                        target: TaskScheduleService().dailyTarget(for: taskDTO, on: date, calendar: calendar)
+                    )
+                }
+            }
             let completed = try Self.total(taskID: taskID, dayKey: key, context: context)
             let target = TaskScheduleService().dailyTarget(for: taskDTO, on: date, calendar: calendar)
             guard completed < target else { throw RepositoryError.targetAlreadyReached }
             let acceptedValue = min(value, target - completed)
 
             let event = CheckInEntity(context: context)
-            event.id = UUID()
+            event.id = eventID ?? UUID()
             event.occurredAt = date
             event.dayKey = key
             event.value = Int16(acceptedValue)

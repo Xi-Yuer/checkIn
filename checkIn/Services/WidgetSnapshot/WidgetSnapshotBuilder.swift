@@ -31,7 +31,7 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
         let fetchedTasks = try await tasks.fetch(
             TaskQuery(filter: .active, sort: sortProvider(), date: date)
         )
-        let limitedTasks = Array(fetchedTasks.prefix(20))
+        let limitedTasks = Array(fetchedTasks.prefix(CheckInSharedConstants.maximumTaskCount))
         let progresses = try await checkIns.progresses(taskIDs: limitedTasks.map(\.id), on: date)
         let scheduleService = TaskScheduleService()
 
@@ -74,6 +74,7 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
         )
         try store.save(snapshot)
         WidgetCenter.shared.reloadTimelines(ofKind: CheckInSharedConstants.widgetKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: CheckInSharedConstants.focusedWidgetKind)
         return snapshot
     }
 }

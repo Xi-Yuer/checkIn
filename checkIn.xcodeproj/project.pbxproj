@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		7A0000000000000000000001 /* CheckInWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A0000000000000000000030 /* CheckInWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7A0000000000000000000302 /* ACarousel in Frameworks */ = {isa = PBXBuildFile; productRef = 7A0000000000000000000301 /* ACarousel */; };
+		7B0000000000000000000001 /* CheckInIntentExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7B0000000000000000000030 /* CheckInIntentExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,6 +34,13 @@
 			remoteGlobalIDString = 1E1CE1CA303443700047E36E;
 			remoteInfo = checkIn;
 		};
+		7B0000000000000000000010 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1E1CE1C3303443700047E36E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7B0000000000000000000100;
+			remoteInfo = CheckInIntentExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -43,6 +51,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				7A0000000000000000000001 /* CheckInWidgetExtension.appex in Embed Foundation Extensions */,
+				7B0000000000000000000001 /* CheckInIntentExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -56,6 +65,7 @@
 		7A0000000000000000000032 /* checkInUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = checkInUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A0000000000000000000033 /* checkIn.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = checkIn.xctestplan; sourceTree = "<group>"; };
 		7A0000000000000000000034 /* CheckInApp-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "CheckInApp-Info.plist"; sourceTree = "<group>"; };
+		7B0000000000000000000030 /* CheckInIntentExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CheckInIntentExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -65,6 +75,13 @@
 				Info.plist,
 			);
 			target = 7A0000000000000000000100 /* CheckInWidgetExtension */;
+		};
+		7B0000000000000000000035 /* Exceptions for "CheckInIntent" folder in "CheckInIntentExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7B0000000000000000000100 /* CheckInIntentExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -95,6 +112,14 @@
 		7A0000000000000000000043 /* checkInUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = checkInUITests;
+			sourceTree = "<group>";
+		};
+		7B0000000000000000000040 /* CheckInIntent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7B0000000000000000000035 /* Exceptions for "CheckInIntent" folder in "CheckInIntentExtension" target */,
+			);
+			path = CheckInIntent;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -129,6 +154,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7B0000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -140,6 +172,7 @@
 				7A0000000000000000000041 /* CheckInWidget */,
 				7A0000000000000000000042 /* checkInTests */,
 				7A0000000000000000000043 /* checkInUITests */,
+				7B0000000000000000000040 /* CheckInIntent */,
 				7A0000000000000000000034 /* CheckInApp-Info.plist */,
 				7A0000000000000000000033 /* checkIn.xctestplan */,
 				1E1CE1CC303443700047E36E /* Products */,
@@ -153,6 +186,7 @@
 				7A0000000000000000000030 /* CheckInWidgetExtension.appex */,
 				7A0000000000000000000031 /* checkInTests.xctest */,
 				7A0000000000000000000032 /* checkInUITests.xctest */,
+				7B0000000000000000000030 /* CheckInIntentExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -173,6 +207,7 @@
 			);
 			dependencies = (
 				7A0000000000000000000120 /* PBXTargetDependency */,
+				7B0000000000000000000120 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1E1CE1CD303443700047E36E /* checkIn */,
@@ -255,6 +290,29 @@
 			productReference = 7A0000000000000000000032 /* checkInUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		7B0000000000000000000100 /* CheckInIntentExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7B0000000000000000000210 /* Build configuration list for PBXNativeTarget "CheckInIntentExtension" */;
+			buildPhases = (
+				7B0000000000000000000050 /* Sources */,
+				7B0000000000000000000051 /* Frameworks */,
+				7B0000000000000000000052 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7A0000000000000000000040 /* CheckInShared */,
+				7B0000000000000000000040 /* CheckInIntent */,
+			);
+			name = CheckInIntentExtension;
+			packageProductDependencies = (
+			);
+			productName = CheckInIntentExtension;
+			productReference = 7B0000000000000000000030 /* CheckInIntentExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -278,6 +336,9 @@
 					7A0000000000000000000102 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 1E1CE1CA303443700047E36E;
+					};
+					7B0000000000000000000100 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -303,6 +364,7 @@
 				7A0000000000000000000100 /* CheckInWidgetExtension */,
 				7A0000000000000000000101 /* checkInTests */,
 				7A0000000000000000000102 /* checkInUITests */,
+				7B0000000000000000000100 /* CheckInIntentExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -330,6 +392,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7A0000000000000000000058 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B0000000000000000000052 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -367,6 +436,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7B0000000000000000000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -384,6 +460,11 @@
 			isa = PBXTargetDependency;
 			target = 1E1CE1CA303443700047E36E /* checkIn */;
 			targetProxy = 7A0000000000000000000012 /* PBXContainerItemProxy */;
+		};
+		7B0000000000000000000120 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7B0000000000000000000100 /* CheckInIntentExtension */;
+			targetProxy = 7B0000000000000000000010 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -692,6 +773,57 @@
 			};
 			name = Release;
 		};
+		7B0000000000000000000200 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = CheckInIntent/CheckInIntent.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3GX54VYZ52;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CheckInIntent/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xiaoyuer.checkIn.intent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7B0000000000000000000201 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = CheckInIntent/CheckInIntent.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3GX54VYZ52;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = CheckInIntent/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xiaoyuer.checkIn.intent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -736,6 +868,15 @@
 			buildConfigurations = (
 				7A0000000000000000000204 /* Debug */,
 				7A0000000000000000000205 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7B0000000000000000000210 /* Build configuration list for PBXNativeTarget "CheckInIntentExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B0000000000000000000200 /* Debug */,
+				7B0000000000000000000201 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

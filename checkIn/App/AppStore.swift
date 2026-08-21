@@ -38,6 +38,7 @@ final class AppStore: ObservableObject {
     private let checkInRepository: any CheckInRepository
     private let notificationScheduler: any NotificationScheduling
     private let snapshotBuilder: any WidgetSnapshotBuilding
+    private let widgetPendingCheckIns: AppGroupWidgetPendingCheckInStore
     private let settingsStore: any SettingsStoring
     private let dateProvider: any DateProvider
     private let calendar: Calendar
@@ -101,6 +102,7 @@ final class AppStore: ObservableObject {
             checkIns: repositories.checkIns,
             notificationScheduler: UserNotificationScheduler(),
             snapshotBuilder: snapshotBuilder,
+            widgetPendingCheckIns: AppGroupWidgetPendingCheckInStore(),
             settingsStore: settingsStore,
             dateProvider: dateProvider
         )
@@ -111,6 +113,7 @@ final class AppStore: ObservableObject {
         checkIns: any CheckInRepository,
         notificationScheduler: any NotificationScheduling = DisabledNotificationScheduler(),
         snapshotBuilder: any WidgetSnapshotBuilding = DisabledWidgetSnapshotBuilder(),
+        widgetPendingCheckIns: AppGroupWidgetPendingCheckInStore = AppGroupWidgetPendingCheckInStore(),
         settingsStore: any SettingsStoring = InMemorySettingsStore(),
         dateProvider: any DateProvider = SystemDateProvider(),
         calendar: Calendar = .autoupdatingCurrent
@@ -119,6 +122,7 @@ final class AppStore: ObservableObject {
         checkInRepository = checkIns
         self.notificationScheduler = notificationScheduler
         self.snapshotBuilder = snapshotBuilder
+        self.widgetPendingCheckIns = widgetPendingCheckIns
         self.settingsStore = settingsStore
         self.dateProvider = dateProvider
         self.calendar = calendar
@@ -137,6 +141,7 @@ final class AppStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
+            await importPendingWidgetCheckIns()
             try await reloadCoreState()
             notificationStatus = await notificationScheduler.authorizationStatus()
             try await notificationScheduler.reconcile(tasks: habits, now: today)
@@ -419,6 +424,37 @@ final class AppStore: ObservableObject {
 
     private func rebuildSnapshotIgnoringFailure() async {
         _ = try? await snapshotBuilder.rebuild(for: today)
+    }
+
+    private func importPendingWidgetCheckIns() async {
+        guard let actions = try? widgetPendingCheckIns.load(), !actions.isEmpty else { return }
+        var consumedIDs: Set<UUID> = []
+
+        actionLoop: for action in actions.sorted(by: { $0.occurredAt < $1.occurredAt }) {
+            do {
+                _ = try await checkInRepository.checkIn(
+                    taskID: action.taskID,
+                    at: action.occurredAt,
+                    value: 1,
+                    source: .widget,
+                    eventID: action.id
+                )
+                consumedIDs.insert(action.id)
+            } catch let error as RepositoryError {
+                switch error {
+                case .taskNotFound, .taskPaused, .notScheduled, .targetAlreadyReached, .invalidValue:
+                    consumedIDs.insert(action.id)
+                case .noCheckInToUndo:
+                    consumedIDs.insert(action.id)
+                case .persistence:
+                    break actionLoop
+                }
+            } catch {
+                break actionLoop
+            }
+        }
+
+        try? widgetPendingCheckIns.remove(ids: consumedIDs)
     }
 
     private func isScheduledToday(_ habit: TaskDTO) -> Bool {

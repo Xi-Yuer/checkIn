@@ -277,6 +277,37 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(undoneStreaks[id], 0)
     }
 
+    func testRepositoryTreatsWidgetEventIDAsIdempotencyKey() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(now),
+            calendar: calendar
+        )
+        let taskID = try await repositories.tasks.create(TaskDraft(title: "喝水", dailyTarget: 3))
+        let eventID = UUID()
+
+        _ = try await repositories.checkIns.checkIn(
+            taskID: taskID,
+            at: now,
+            value: 1,
+            source: .widget,
+            eventID: eventID
+        )
+        _ = try await repositories.checkIns.checkIn(
+            taskID: taskID,
+            at: now,
+            value: 1,
+            source: .widget,
+            eventID: eventID
+        )
+
+        let progress = try await repositories.checkIns.progress(taskID: taskID, on: now)
+        let historyCount = try await repositories.checkIns.checkInCount(taskID: taskID)
+        XCTAssertEqual(progress.completed, 1)
+        XCTAssertEqual(historyCount, 1)
+    }
+
     func testPauseResumeAndCascadeDelete() async throws {
         let persistence = PersistenceController(inMemory: true)
         let repositories = CoreDataRepositories(
@@ -492,10 +523,87 @@ final class DomainAndRepositoryTests: XCTestCase {
             dayKey: "2026-08-19",
             tasks: tasks
         )
-        XCTAssertEqual(snapshot.tasks.count, 20)
-        XCTAssertEqual(snapshot.progress(on: now, calendar: calendar).completed, 40)
+        XCTAssertEqual(snapshot.tasks.count, 24)
+        XCTAssertEqual(snapshot.progress(on: now, calendar: calendar).completed, 48)
         XCTAssertEqual(snapshot.progress(on: date(2026, 8, 20), calendar: calendar).completed, 0)
-        XCTAssertEqual(snapshot.progress(on: date(2026, 8, 20), calendar: calendar).goal, 40)
+        XCTAssertEqual(snapshot.progress(on: date(2026, 8, 20), calendar: calendar).goal, 48)
+    }
+
+    func testWidgetPendingCheckInStoreCapsDuplicatesAndRemovesConsumedActions() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("widget-actions-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = AppGroupWidgetPendingCheckInStore(containerURL: directory)
+        let taskID = UUID()
+        let first = WidgetPendingCheckIn(id: UUID(), taskID: taskID, occurredAt: now)
+        let second = WidgetPendingCheckIn(id: UUID(), taskID: taskID, occurredAt: now)
+
+        XCTAssertTrue(try store.enqueue(first, maximumPendingForTask: 1))
+        XCTAssertFalse(try store.enqueue(first, maximumPendingForTask: 1))
+        XCTAssertFalse(try store.enqueue(second, maximumPendingForTask: 1))
+        XCTAssertEqual(try store.load(), [first])
+
+        try store.remove(ids: [first.id])
+        XCTAssertTrue(try store.load().isEmpty)
+    }
+
+    func testFocusedWidgetSelectionRequiresChoiceOnlyWhenMultipleHabitsExist() {
+        let first = WidgetTaskSnapshot(
+            id: UUID(),
+            title: "阅读",
+            symbolName: "book.fill",
+            colorHex: "#7C3AED",
+            sortOrder: 0,
+            dailyGoal: 1,
+            completedCount: 0,
+            schedule: WidgetSchedule(kind: .daily)
+        )
+        var second = first
+        second.id = UUID()
+        second.title = "喝水"
+        second.sortOrder = 1
+
+        let empty = WidgetSnapshot(usableThrough: now, dayKey: "2026-08-19", tasks: [])
+        let single = WidgetSnapshot(usableThrough: now, dayKey: "2026-08-19", tasks: [first])
+        let multiple = WidgetSnapshot(usableThrough: now, dayKey: "2026-08-19", tasks: [first, second])
+
+        XCTAssertEqual(empty.focusedTask(selectedIdentifier: nil), .noHabits)
+        XCTAssertEqual(single.focusedTask(selectedIdentifier: nil), .task(first))
+        XCTAssertEqual(multiple.focusedTask(selectedIdentifier: nil), .chooseHabit)
+        XCTAssertEqual(multiple.focusedTask(selectedIdentifier: second.id.uuidString), .task(second))
+        XCTAssertEqual(multiple.focusedTask(selectedIdentifier: UUID().uuidString), .invalidSelection)
+    }
+
+    func testAppImportsWidgetQueueOnceAndRemovesIt() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(now),
+            calendar: calendar
+        )
+        let taskID = try await repositories.tasks.create(TaskDraft(title: "喝水", dailyTarget: 3))
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("widget-import-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let pendingStore = AppGroupWidgetPendingCheckInStore(containerURL: directory)
+        let action = WidgetPendingCheckIn(id: UUID(), taskID: taskID, occurredAt: now)
+        XCTAssertTrue(try pendingStore.enqueue(action, maximumPendingForTask: 3))
+
+        let store = AppStore(
+            tasks: repositories.tasks,
+            checkIns: repositories.checkIns,
+            widgetPendingCheckIns: pendingStore,
+            dateProvider: FixedDateProvider(now),
+            calendar: calendar
+        )
+        await store.load()
+        XCTAssertEqual(store.todayProgress[taskID]?.completed, 1)
+        XCTAssertTrue(try pendingStore.load().isEmpty)
+
+        XCTAssertTrue(try pendingStore.enqueue(action, maximumPendingForTask: 3))
+        await store.load()
+        XCTAssertEqual(store.todayProgress[taskID]?.completed, 1)
+        XCTAssertTrue(try pendingStore.load().isEmpty)
     }
 
     func testWidgetSnapshotRejectsCorruptionAndFutureVersions() throws {
