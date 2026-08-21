@@ -44,7 +44,11 @@ struct TodayHabitRow: View {
                     .accessibilityLabel("正在打卡")
             } else {
                 Button(action: onCheckIn) {
-                    CheckInProgressGauge(progress: fraction, isComplete: isComplete)
+                    CheckInProgressGauge(
+                        progress: fraction,
+                        isComplete: isComplete,
+                        showsLiquidWave: target > 1
+                    )
                         .frame(width: 44, height: 44)
                         .contentShape(Circle())
                 }
@@ -84,25 +88,36 @@ struct TodayHabitRow: View {
 private struct CheckInProgressGauge: View {
     let progress: Double
     let isComplete: Bool
+    let showsLiquidWave: Bool
 
-    private let size: CGFloat = 28
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let size: CGFloat = 32
 
     var body: some View {
         let fill = CGFloat(min(1, max(0, progress)))
 
         ZStack {
             Circle()
+                .fill(PlanetTheme.mint.opacity(0.08))
+
+            if showsLiquidWave && !isComplete {
+                liquid(fill: fill)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(PlanetTheme.mint)
+                    .mask(alignment: .bottom) {
+                        Rectangle()
+                            .frame(height: size * fill)
+                    }
+            }
+
+            Circle()
                 .stroke(
                     progress > 0 ? PlanetTheme.mint : PlanetTheme.lavender.opacity(0.55),
                     lineWidth: 2
                 )
-
-            Circle()
-                .fill(PlanetTheme.mint)
-                .mask(alignment: .bottom) {
-                    Rectangle()
-                        .frame(height: size * fill)
-                }
 
             if isComplete {
                 Image(systemName: "checkmark")
@@ -112,7 +127,55 @@ private struct CheckInProgressGauge: View {
         }
         .frame(width: size, height: size)
         .shadow(color: isComplete ? PlanetTheme.mint.opacity(0.28) : .clear, radius: 6, y: 2)
+        .animation(.spring(response: 0.48, dampingFraction: 0.72), value: fill)
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func liquid(fill: CGFloat) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+            let seconds = timeline.date.timeIntervalSinceReferenceDate
+            let phase = reduceMotion ? 0 : seconds * 2.2
+
+            ZStack {
+                LiquidWave(fill: fill, phase: phase, amplitude: 1.8)
+                    .fill(PlanetTheme.mint.opacity(0.48))
+                    .offset(x: -1)
+
+                LiquidWave(fill: fill, phase: -phase * 0.82 + 1.4, amplitude: 1.35)
+                    .fill(PlanetTheme.mint.opacity(0.92))
+                    .offset(y: 1.4)
+            }
+        }
+    }
+}
+
+private struct LiquidWave: Shape {
+    var fill: CGFloat
+    var phase: Double
+    var amplitude: CGFloat
+
+    var animatableData: CGFloat {
+        get { fill }
+        set { fill = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let clampedFill = min(1, max(0, fill))
+        let surfaceY = rect.maxY - rect.height * clampedFill
+        let wavelength = max(rect.width * 0.72, 1)
+
+        path.move(to: CGPoint(x: rect.minX, y: surfaceY))
+        stride(from: rect.minX, through: rect.maxX + 1, by: 1).forEach { x in
+            let angle = ((x - rect.minX) / wavelength) * (2 * CGFloat.pi) + CGFloat(phase)
+            let y = surfaceY + sin(angle) * amplitude
+            path.addLine(to: CGPoint(x: x, y: y))
+        }
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
