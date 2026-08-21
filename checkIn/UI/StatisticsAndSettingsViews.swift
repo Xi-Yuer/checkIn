@@ -643,9 +643,9 @@ struct SettingsView: View {
 
     private var aboutCard: some View {
         NavigationLink {
-            AboutCheckInView(onReplayOnboarding: store.showOnboardingAgain)
+            AboutCheckInView()
         } label: {
-            menuRow(title: "关于我们", asset: "ProfileInfo")
+            menuRow(title: "关于", asset: "ProfileInfo")
                 .background(Color.white.opacity(0.93))
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .shadow(color: PlanetTheme.violet.opacity(0.09), radius: 14, y: 6)
@@ -743,39 +743,268 @@ struct SettingsView: View {
 
 private struct ThemeSettingsView: View {
     @ObservedObject var store: AppStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             PlanetAtmosphere()
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Image("ProfilePalette")
-                        .resizable().scaledToFit().frame(width: 82, height: 82)
-                        .frame(maxWidth: .infinity)
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("选择星球外观")
-                            .font(.system(.headline, design: .rounded, weight: .heavy))
-                            .foregroundStyle(PlanetTheme.primaryText)
-                        Picker("外观", selection: appearanceBinding) {
-                            ForEach(AppAppearance.allCases) { appearance in
-                                Text(appearance.title).tag(appearance)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
+                VStack(spacing: 16) {
+                    appearanceCard
+                    widgetGuideCard
                 }
-                .qCard(padding: 18)
                 .padding(16)
+                .padding(.bottom, 20)
             }
         }
         .navigationTitle("主题外观")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var appearanceBinding: Binding<AppAppearance> {
-        Binding(get: { store.settings.appearance }, set: store.setAppearance)
+    private var appearanceCard: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                Image("ProfilePalette")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 52, height: 52)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading) {
+                    Text("界面外观")
+                        .font(.system(.headline, design: .rounded, weight: .heavy))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            Divider()
+                .overlay(PlanetTheme.separator.opacity(0.45))
+
+            VStack(spacing: 4) {
+                ForEach(AppAppearance.allCases) { appearance in
+                    appearanceOption(appearance)
+                }
+            }
+        }
+        .padding(18)
+        .background(PlanetTheme.surface.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.36), lineWidth: 1)
+        }
+        .shadow(color: PlanetTheme.violet.opacity(0.08), radius: 16, y: 7)
     }
 
+    private func appearanceOption(_ appearance: AppAppearance) -> some View {
+        let selected = store.settings.appearance == appearance
+        return Button {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.78)) {
+                store.setAppearance(appearance)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(optionTint(appearance).opacity(selected ? 0.18 : 0.10))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: optionSymbol(appearance))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(optionTint(appearance))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(appearance.title)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text(appearanceDescription(appearance))
+                        .font(.system(.caption2, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+
+                Spacer(minLength: 8)
+
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(PlanetTheme.violet)
+                } else {
+                    Circle()
+                        .stroke(PlanetTheme.separator.opacity(0.8), lineWidth: 1.5)
+                        .frame(width: 19, height: 19)
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(selected ? PlanetTheme.softViolet.opacity(0.72) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(appearance.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var widgetGuideCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("桌面打卡", systemImage: "sparkles")
+                        .font(.system(.caption, design: .rounded, weight: .heavy))
+                        .foregroundStyle(PlanetTheme.violet)
+                    Text("把打卡放到桌面")
+                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text("不用打开 App，也能查看计划并快速打卡")
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 4)
+
+                widgetPreview
+            }
+
+            VStack(spacing: 0) {
+                widgetGuideStep(1, symbol: "hand.tap.fill", text: "长按桌面空白处")
+                widgetGuideStep(2, symbol: "plus", text: "点击左上角的添加按钮")
+                widgetGuideStep(3, symbol: "magnifyingglass", text: "搜索“打卡小星球”")
+                widgetGuideStep(4, symbol: "rectangle.3.group.fill", text: "选择喜欢的尺寸并添加")
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(PlanetTheme.mutedSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .padding(18)
+        .background(PlanetTheme.surface.opacity(0.97))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.36), lineWidth: 1)
+        }
+        .shadow(color: PlanetTheme.violet.opacity(0.09), radius: 18, y: 8)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func widgetGuideStep(_ number: Int, symbol: String, text: String) -> some View {
+        HStack(spacing: 11) {
+            ZStack {
+                Circle()
+                    .fill(stepColor(number).opacity(0.16))
+                    .frame(width: 34, height: 34)
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(stepColor(number))
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L10n.format("第 %d 步", number))
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .foregroundStyle(stepColor(number))
+                Text(L10n.text(text))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            if number < 4 {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(PlanetTheme.separator)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(PlanetTheme.mint)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 56)
+    }
+
+    private var widgetPreview: some View {
+        ZStack {
+            LinearGradient(
+                colors: [PlanetTheme.softViolet, PlanetTheme.lavender.opacity(0.34)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 5) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(PlanetTheme.gold)
+                    Capsule()
+                        .fill(PlanetTheme.primaryText.opacity(0.72))
+                        .frame(width: 34, height: 5)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("12")
+                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text("天")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+                Capsule()
+                    .fill(PlanetTheme.violet)
+                    .frame(maxWidth: .infinity, minHeight: 12)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.system(size: 6, weight: .heavy))
+                            .foregroundStyle(.white)
+                    }
+            }
+            .padding(10)
+        }
+        .frame(width: 92, height: 76)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.white.opacity(0.8), lineWidth: 2)
+        }
+        .shadow(color: PlanetTheme.violet.opacity(0.18), radius: 9, y: 5)
+        .accessibilityHidden(true)
+    }
+
+    private func optionSymbol(_ appearance: AppAppearance) -> String {
+        switch appearance {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.stars.fill"
+        }
+    }
+
+    private func optionTint(_ appearance: AppAppearance) -> Color {
+        switch appearance {
+        case .system: PlanetTheme.violet
+        case .light: PlanetTheme.gold
+        case .dark: Color(hex: "#6366F1")
+        }
+    }
+
+    private func appearanceDescription(_ appearance: AppAppearance) -> String {
+        switch appearance {
+        case .system: L10n.text("自动适配系统设置")
+        case .light: L10n.text("明亮清爽")
+        case .dark: L10n.text("夜间更舒适")
+        }
+    }
+
+    private func stepColor(_ number: Int) -> Color {
+        switch number {
+        case 1: PlanetTheme.violet
+        case 2: PlanetTheme.coral
+        case 3: Color(hex: "#3B82F6")
+        default: PlanetTheme.mint
+        }
+    }
 }
 
 private struct GeneralSettingsView: View {
@@ -787,7 +1016,7 @@ private struct GeneralSettingsView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        settingsLabel("语言", caption: "默认跟随系统", symbol: "globe")
+                        settingsLabel("语言", caption: "默认跟随系统", symbol: "character.bubble.fill")
                         Spacer(minLength: 8)
                         Picker("语言", selection: languageBinding) {
                             ForEach(AppLanguage.allCases) { language in
@@ -798,14 +1027,6 @@ private struct GeneralSettingsView: View {
                         .pickerStyle(.menu)
                         .fixedSize()
                     }
-                    .frame(minHeight: 62)
-
-                    Divider().overlay(PlanetTheme.separator.opacity(0.6))
-
-                    Toggle(isOn: soundBinding) {
-                        settingsLabel("打卡声音", caption: "完成时播放一声小欢呼", symbol: "speaker.wave.2.fill")
-                    }
-                    .tint(PlanetTheme.violet)
                     .frame(minHeight: 62)
 
                     Divider().overlay(PlanetTheme.separator.opacity(0.6))
@@ -822,10 +1043,6 @@ private struct GeneralSettingsView: View {
         }
         .navigationTitle("通用设置")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var soundBinding: Binding<Bool> {
-        Binding(get: { store.settings.soundEnabled }, set: store.setSoundEnabled)
     }
 
     private var languageBinding: Binding<AppLanguage> {
@@ -1089,7 +1306,7 @@ private struct DataPrivacyView: View {
                         .frame(maxWidth: .infinity)
                     informationBlock(
                         title: "只在本机保存",
-                        message: "习惯与打卡记录保存在这台设备的应用数据中，不会上传到我们的服务器。",
+                        message: "习惯与打卡记录保存在这台设备的应用数据中，不会上传到任何服务器。",
                         symbol: "iphone"
                     )
                     informationBlock(
@@ -1132,35 +1349,95 @@ private struct DataPrivacyView: View {
 }
 
 private struct AboutCheckInView: View {
-    var onReplayOnboarding: () -> Void = {}
-
     var body: some View {
         ZStack {
             PlanetAtmosphere()
-            VStack(spacing: 18) {
-                MascotView(mood: .ready, size: 144)
-                VStack(spacing: 7) {
-                    Text("打卡小星球")
-                        .font(.system(.title, design: .rounded, weight: .heavy))
-                        .foregroundStyle(PlanetTheme.primaryText)
-                    Text("养成好习惯，每天进步一点点")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(PlanetTheme.secondaryText)
-                }
-                Text("版本 \(appVersion)")
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(PlanetTheme.secondaryText)
+            ScrollView {
+                VStack(spacing: 16) {
+                    HStack(spacing: 16) {
+                        MascotView(mood: .ready, size: 96)
 
-                Button("重看新手引导", action: onReplayOnboarding)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(PlanetTheme.violet)
-                    .padding(.top, 8)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("打卡小星球")
+                                .font(.system(.title2, design: .rounded, weight: .heavy))
+                                .foregroundStyle(PlanetTheme.primaryText)
+                            Text("养成好习惯，每天进步一点点")
+                                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                                .foregroundStyle(PlanetTheme.secondaryText)
+                            Text("版本 \(appVersion)")
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .foregroundStyle(PlanetTheme.violet)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
+                                .background(PlanetTheme.softViolet)
+                                .clipShape(Capsule())
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(18)
+                    .background(PlanetTheme.surface.opacity(0.96))
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 22) {
+                        Text("写给每一位认真生活的人")
+                            .font(.system(.title3, design: .rounded, weight: .heavy))
+                            .foregroundStyle(PlanetTheme.primaryText)
+
+                        aboutSection(
+                            title: "为什么做这个 App",
+                            body: "做打卡小星球的起点很简单：习惯养成不应该是一件有压力的事。我用过许多越来越复杂的工具，也常常因为繁琐的设置忘记最初想做的那件小事。所以我想做一个安静、轻巧的地方，让你只需要记住今天要做什么，然后认真完成它。"
+                        )
+
+                        aboutSection(
+                            title: "免费，是我的选择",
+                            body: "打卡小星球可以免费使用。我希望记录生活、培养习惯这件事，不会因为付费墙而变得遥远。你可以安心创建计划、记录打卡、查看自己的进步，不需要为了基础功能订阅。"
+                        )
+
+                        aboutSection(
+                            title: "你的数据，只属于你",
+                            body: "你的习惯、打卡记录和设置都保存在这台设备上。App 不要求注册账号，不会把这些内容上传到任何服务器，也不会用于广告追踪或数据分析。如果你开启了系统设备备份，数据可能会随系统备份保存，是否备份由你的系统设置决定。"
+                        )
+
+                        aboutSection(
+                            title: "关于隐私",
+                            body: "我相信，最好的隐私保护不是写一份很长的承诺，而是尽量少收集数据。当前版本不提供账号、云同步或跨设备共享，也不嵌入广告追踪。你的每一次打卡，都是你和自己之间的小约定。"
+                        )
+
+                        Text("谢谢你让这颗小星球，成为生活里的一部分。")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(PlanetTheme.violet)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
+                    }
+                    .padding(22)
+                    .background(PlanetTheme.surface.opacity(0.97))
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .stroke(PlanetTheme.separator.opacity(0.36), lineWidth: 1)
+                    }
+                }
+                .frame(maxWidth: 520)
+                .padding(16)
+                .padding(.bottom, 24)
             }
-            .frame(maxWidth: 420)
-            .padding(28)
         }
-        .navigationTitle("关于我们")
+        .navigationTitle("关于")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func aboutSection(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text(title))
+                .font(.system(.headline, design: .rounded, weight: .bold))
+                .foregroundStyle(PlanetTheme.primaryText)
+            Text(L10n.text(body))
+                .font(.system(.body, design: .rounded, weight: .regular))
+                .foregroundStyle(PlanetTheme.secondaryText)
+                .lineSpacing(5)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var appVersion: String {

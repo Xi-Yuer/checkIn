@@ -327,23 +327,8 @@ final class AppStore: ObservableObject {
         route = await deepLinkRouter.resolve(url, tasks: tasks)
     }
 
-    func completeOnboarding() {
-        settings.hasCompletedOnboarding = true
-        persistSettings()
-    }
-
-    func showOnboardingAgain() {
-        settings.hasCompletedOnboarding = false
-        persistSettings()
-    }
-
     func setAppearance(_ appearance: AppAppearance) {
         settings.appearance = appearance
-        persistSettings()
-    }
-
-    func setSoundEnabled(_ enabled: Bool) {
-        settings.soundEnabled = enabled
         persistSettings()
     }
 

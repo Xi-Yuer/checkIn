@@ -133,20 +133,30 @@
 "项" = "today";
 "最佳" = "Best";
 "主题外观" = "Appearance";
+"界面外观" = "Interface Appearance";
+"自动适配系统设置" = "Matches your system setting";
+"明亮清爽" = "Bright and clear";
+"夜间更舒适" = "Easier on the eyes at night";
+"桌面打卡" = "HOME SCREEN";
+"第 %d 步" = "STEP %d";
+"把打卡放到桌面" = "Add Check-In to Home Screen";
+"不用打开 App，也能查看计划并快速打卡" = "See your plans and check in without opening the app.";
+"长按桌面空白处" = "Touch and hold an empty area on the Home Screen";
+"点击左上角的添加按钮" = "Tap the Add button in the top-left corner";
+"搜索“打卡小星球”" = "Search for “Habit Planet”";
+"选择喜欢的尺寸并添加" = "Choose a widget size and add it";
 "通用设置" = "General";
 "语言" = "Language";
 "语言跟随系统" = "System Default";
 "简体中文" = "Chinese (Simplified)";
 "默认跟随系统" = "iPhone language by default";
-"关于我们" = "About";
+"关于" = "About";
 "所有数据仅保存在本机，无需登录，不上传，不提供云备份" = "All data stays on this device. No account, uploads, or cloud backup.";
 "选择星球外观" = "Choose an Appearance";
 "外观" = "Appearance";
 "跟随系统" = "System";
 "浅色" = "Light";
 "深色" = "Dark";
-"打卡声音" = "Check-in Sound";
-"完成时播放一声小欢呼" = "Play a sound when you finish";
 "触感反馈" = "Haptics";
 "让每次打卡更有实感" = "Add a tap of feedback to each check-in";
 "通知权限" = "Notification Access";
@@ -163,7 +173,7 @@
 
 /* About and privacy */
 "只在本机保存" = "Stored on This Device";
-"习惯与打卡记录保存在这台设备的应用数据中，不会上传到我们的服务器。" = "Your habits and check-ins stay in the app on this device. They are not uploaded to our servers.";
+"习惯与打卡记录保存在这台设备的应用数据中，不会上传到任何服务器。" = "Your habits and check-ins stay in the app on this device. They are not uploaded to any server.";
 "跟随系统备份" = "System Backup";
 "数据可能随你的设备系统备份保存；是否备份由系统设置决定。" = "Your data may be included in an iOS device backup, depending on your system settings.";
 "没有云同步" = "No Cloud Sync";
@@ -171,17 +181,16 @@
 "数据备份" = "Data & Privacy";
 "养成好习惯，每天进步一点点" = "Small habits. Better days.";
 "版本 %@" = "Version %@";
-"重看新手引导" = "Replay Introduction";
-
-/* Onboarding */
-"开始打卡之旅" = "Get Started";
-"下一步" = "Next";
-"开始体验" = "Start Using the App";
-"打卡小星球，养成好习惯，每天进步一点点" = "Habit Planet. Build small habits and make every day count.";
-"制定目标，设定你的目标，让每一天更有方向" = "Set a goal and give each day a little direction.";
-"坚持打卡，每天完成打卡，积累小小的成就" = "Keep showing up and turn small wins into real progress.";
-"收获成长，见证你的蜕变，成为更好的自己" = "See how far you have come, one day at a time.";
-
+"写给每一位认真生活的人" = "A Note for Everyone Building a Better Day";
+"为什么做这个 App" = "Why I Built This App";
+"做打卡小星球的起点很简单：习惯养成不应该是一件有压力的事。我用过许多越来越复杂的工具，也常常因为繁琐的设置忘记最初想做的那件小事。所以我想做一个安静、轻巧的地方，让你只需要记住今天要做什么，然后认真完成它。" = "Habit Planet began with a simple belief: building a habit should not feel stressful. I had tried many tools that grew increasingly complicated, and all that setup often made me lose sight of the small thing I wanted to do. I wanted to create a quiet, lightweight place where you can see what matters today and simply follow through.";
+"免费，是我的选择" = "Why It Is Free";
+"打卡小星球可以免费使用。我希望记录生活、培养习惯这件事，不会因为付费墙而变得遥远。你可以安心创建计划、记录打卡、查看自己的进步，不需要为了基础功能订阅。" = "Habit Planet is free to use. I do not want a paywall to put keeping track of your life and building better habits out of reach. You can create plans, check in, and review your progress without subscribing for the essentials.";
+"你的数据，只属于你" = "Your Data Belongs to You";
+"你的习惯、打卡记录和设置都保存在这台设备上。App 不要求注册账号，不会把这些内容上传到任何服务器，也不会用于广告追踪或数据分析。如果你开启了系统设备备份，数据可能会随系统备份保存，是否备份由你的系统设置决定。" = "Your habits, check-in history, and settings stay on this device. The app does not require an account, upload this content to any server, or use it for advertising or analytics. If device backup is enabled, the data may be included in your system backup according to your system settings.";
+"关于隐私" = "About Privacy";
+"我相信，最好的隐私保护不是写一份很长的承诺，而是尽量少收集数据。当前版本不提供账号、云同步或跨设备共享，也不嵌入广告追踪。你的每一次打卡，都是你和自己之间的小约定。" = "I believe the strongest privacy protection is not a long promise, but collecting as little as possible. This version has no accounts, cloud sync, cross-device sharing, or advertising trackers. Every check-in remains a small promise between you and yourself.";
+"谢谢你让这颗小星球，成为生活里的一部分。" = "Thank you for making this little planet part of your day.";
 /* Categories, filters, and sorting */
 "学习" = "Learning";
 "运动" = "Fitness";

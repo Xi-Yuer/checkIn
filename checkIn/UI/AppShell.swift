@@ -1,4 +1,3 @@
-import AudioToolbox
 import SwiftUI
 import UIKit
 
@@ -212,9 +211,6 @@ struct AppShell: View {
             let generator = UINotificationFeedbackGenerator()
             generator.prepare()
             generator.notificationOccurred(.success)
-        }
-        if store.settings.soundEnabled {
-            AudioServicesPlaySystemSound(1108)
         }
     }
 }

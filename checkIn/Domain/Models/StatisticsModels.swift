@@ -124,8 +124,6 @@ enum AppLanguage: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 struct AppSettings: Codable, Equatable, Sendable {
-    var hasCompletedOnboarding: Bool = false
-    var soundEnabled: Bool = true
     var hapticsEnabled: Bool = true
     var appearance: AppAppearance = .system
     // Optional keeps settings saved by older app versions decodable.

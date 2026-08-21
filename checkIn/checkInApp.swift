@@ -6,10 +6,6 @@ struct checkInApp: App {
     @StateObject private var store: AppStore
 
     init() {
-        let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("-reset-onboarding") {
-            UserDefaults.standard.removeObject(forKey: "app.settings.v1")
-        }
         _store = StateObject(wrappedValue: AppStore())
     }
 

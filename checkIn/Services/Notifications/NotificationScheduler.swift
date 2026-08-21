@@ -88,6 +88,8 @@ final class UserNotificationScheduler: NotificationScheduling, @unchecked Sendab
 }
 
 struct NotificationRequestFactory: Sendable {
+    private static let reminderSoundName = UNNotificationSoundName("PlanReminder.caf")
+
     let calendar: Calendar
 
     func requests(for task: TaskDTO) -> [UNNotificationRequest] {
@@ -95,7 +97,7 @@ struct NotificationRequestFactory: Sendable {
         let content = UNMutableNotificationContent()
         content.title = L10n.text("今天也来点亮一颗星吧")
         content.body = task.title
-        content.sound = .default
+        content.sound = UNNotificationSound(named: Self.reminderSoundName)
         content.userInfo = ["taskID": task.id.uuidString]
 
         let baseID = "task." + task.id.uuidString

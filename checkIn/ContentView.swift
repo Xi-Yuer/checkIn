@@ -6,17 +6,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if store.settings.hasCompletedOnboarding {
-                AppShell(store: store)
-                    .transition(.opacity)
-            } else {
-                OnboardingView {
-                    withAnimation(.easeOut(duration: 0.24)) {
-                        store.completeOnboarding()
-                    }
-                }
+            AppShell(store: store)
                 .transition(.opacity)
-            }
 
             if !hasLoaded {
                 launchSplash
