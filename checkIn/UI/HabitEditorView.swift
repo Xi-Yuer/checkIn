@@ -88,15 +88,7 @@ struct HabitEditorView: View {
             }
         }
         .tint(PlanetTheme.violet)
-        .environment(\.locale, Locale(identifier: "zh_CN"))
-        .environment(\.calendar, chineseCalendar)
         .presentationDragIndicator(.visible)
-    }
-
-    private var chineseCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = Locale(identifier: "zh_CN")
-        return calendar
     }
 
     private var identitySection: some View {
@@ -250,7 +242,7 @@ struct HabitEditorView: View {
                 scheduleType = type
             }
         } label: {
-            Text(title)
+            Text(L10n.text(title))
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(scheduleType == type ? Color.white : PlanetTheme.secondaryText)
                 .frame(maxWidth: .infinity, minHeight: 44)

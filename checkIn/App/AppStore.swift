@@ -124,6 +124,7 @@ final class AppStore: ObservableObject {
         self.calendar = calendar
 
         let loadedSettings = settingsStore.load()
+        L10n.setLanguage(loadedSettings.appLanguage)
         settings = loadedSettings
         habitFilter = loadedSettings.taskFilter
         habitSort = loadedSettings.taskSort
@@ -343,6 +344,12 @@ final class AppStore: ObservableObject {
 
     func setHapticsEnabled(_ enabled: Bool) {
         settings.hapticsEnabled = enabled
+        persistSettings()
+    }
+
+    func setLanguage(_ language: AppLanguage) {
+        L10n.setLanguage(language)
+        settings.language = language
         persistSettings()
     }
 

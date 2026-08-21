@@ -17,6 +17,7 @@ struct checkInApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
+                .environment(\.locale, store.settings.appLanguage.locale)
                 .preferredColorScheme(preferredColorScheme)
                 .tint(PlanetTheme.violet)
                 .onOpenURL { url in

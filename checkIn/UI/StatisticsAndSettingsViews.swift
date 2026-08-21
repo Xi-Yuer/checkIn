@@ -5,6 +5,8 @@ import UIKit
 struct StatisticsView: View {
     @ObservedObject var store: AppStore
 
+    @Environment(\.locale) private var locale
+
     private let calendar = Calendar.autoupdatingCurrent
 
     var body: some View {
@@ -24,7 +26,6 @@ struct StatisticsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .environment(\.locale, chineseLocale)
         .task {
             await store.refreshStatistics()
         }
@@ -84,8 +85,6 @@ struct StatisticsView: View {
         }
         .padding(.horizontal, 16)
     }
-
-    private var chineseLocale: Locale { Locale(identifier: "zh_CN") }
 
     private var trendPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -288,7 +287,7 @@ struct StatisticsView: View {
                 return StatisticsChartPoint(
                     id: DayKey(date: date, calendar: calendar).rawValue,
                     index: 0,
-                    label: "\(calendar.component(.month, from: date))月",
+                    label: date.formatted(.dateTime.month(.abbreviated).locale(locale)),
                     planned: days.reduce(0) { $0 + $1.plannedTaskCount },
                     completed: days.reduce(0) { $0 + $1.completedTaskCount }
                 )
@@ -298,9 +297,9 @@ struct StatisticsView: View {
             points = store.statistics.chartDaily.map { statistic in
                 let label: String
                 if store.statistics.period == .week {
-                    label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(chineseLocale))
+                    label = statistic.date.formatted(.dateTime.weekday(.abbreviated).locale(locale))
                 } else {
-                    label = "\(calendar.component(.day, from: statistic.date))日"
+                    label = statistic.date.formatted(.dateTime.day().locale(locale))
                 }
                 return StatisticsChartPoint(
                     id: statistic.dayKey,
@@ -387,7 +386,7 @@ struct StatisticsView: View {
 
             return YearMonthSnapshot(
                 id: keyPrefix(for: monthDate),
-                title: "\(calendar.component(.month, from: monthDate))月",
+                title: monthDate.formatted(.dateTime.month(.abbreviated).locale(locale)),
                 cells: cells,
                 plannedDays: plannedDays,
                 completedDays: completedDays
@@ -401,22 +400,29 @@ struct StatisticsView: View {
     }
 
     private var orderedWeekdaySymbols: [String] {
-        let symbols = ["日", "一", "二", "三", "四", "五", "六"]
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        let symbols = formatter.veryShortStandaloneWeekdaySymbols ?? []
+        guard symbols.count == 7 else { return Weekday.allCases.map(\.shortTitle) }
         let start = max(0, min(symbols.count - 1, calendar.firstWeekday - 1))
         return Array(symbols[start...] + symbols[..<start])
     }
 
     private var completionHeadline: String {
         store.statistics.plannedTaskDays == 0
-            ? "等待第一颗星"
-            : store.statistics.completionRate.formatted(.percent.precision(.fractionLength(0)).locale(chineseLocale))
+            ? L10n.text("等待第一颗星")
+            : store.statistics.completionRate.formatted(.percent.precision(.fractionLength(0)).locale(locale))
     }
 
     private var completionMessage: String {
         guard store.statistics.plannedTaskDays > 0 else {
-            return "建立一个习惯，开始记录属于你的轨迹。"
+            return L10n.text("建立一个习惯，开始记录属于你的轨迹。")
         }
-        return "完成 \(store.statistics.completedTaskDays) / \(store.statistics.plannedTaskDays) 个计划任务日"
+        return L10n.format(
+            "完成 %d / %d 个计划任务日",
+            store.statistics.completedTaskDays,
+            store.statistics.plannedTaskDays
+        )
     }
 
     private var intervalTitle: String {
@@ -425,11 +431,11 @@ struct StatisticsView: View {
             ?? store.statistics.interval.end
         switch store.statisticsPeriod {
         case .week:
-            return "\(chineseDate(start, .dateTime.month().day())) – \(chineseDate(inclusiveEnd, .dateTime.month().day()))"
+            return "\(localizedDate(start, .dateTime.month().day())) – \(localizedDate(inclusiveEnd, .dateTime.month().day()))"
         case .month:
-            return chineseDate(start, .dateTime.year().month(.wide))
+            return localizedDate(start, .dateTime.year().month(.wide))
         case .year:
-            return chineseDate(start, .dateTime.year())
+            return localizedDate(start, .dateTime.year())
         }
     }
 
@@ -463,12 +469,12 @@ struct StatisticsView: View {
         return calendar.date(byAdding: component, value: value, to: store.statisticsAnchor)
     }
 
-    private func chineseDate(_ date: Date, _ style: Date.FormatStyle) -> String {
-        date.formatted(style.locale(chineseLocale))
+    private func localizedDate(_ date: Date, _ style: Date.FormatStyle) -> String {
+        date.formatted(style.locale(locale))
     }
 
     private func panelTitle(_ title: String, symbol: String) -> some View {
-        Label(title, systemImage: symbol)
+        Label(L10n.text(title), systemImage: symbol)
             .font(.system(.headline, design: .rounded, weight: .heavy))
             .foregroundStyle(PlanetTheme.primaryText)
             .symbolRenderingMode(.hierarchical)
@@ -486,7 +492,7 @@ struct StatisticsView: View {
     private func compactEmptyState(_ message: String, sticker: String) -> some View {
         HStack(spacing: 12) {
             statsSticker(sticker, height: 64)
-            Text(message)
+            Text(L10n.text(message))
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(PlanetTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -521,6 +527,7 @@ struct ProfileView: View {
 }
 
 struct SettingsView: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var store: AppStore
 
     var body: some View {
@@ -565,6 +572,8 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Hi～")
                     Text(profileSubtitle)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.system(.headline, design: .rounded, weight: .heavy))
                 .foregroundStyle(PlanetTheme.violet)
@@ -577,6 +586,7 @@ struct SettingsView: View {
                         .stroke(PlanetTheme.lavender.opacity(0.46), lineWidth: 1.5)
                 }
                 .shadow(color: PlanetTheme.violet.opacity(0.12), radius: 10, y: 5)
+                .frame(maxWidth: 220, alignment: .leading)
                 // Keep the greeting bubble clear of the metrics card below.
                 .offset(x: 22, y: -2)
             }
@@ -645,13 +655,19 @@ struct SettingsView: View {
     }
 
     private var localDataNote: some View {
-        Image("ProfileLocalData")
+        Image(localDataNoteAssetName)
             .resizable()
             .interpolation(.high)
             .scaledToFit()
             .frame(maxWidth: 390)
             .padding(.horizontal, 18)
             .accessibilityLabel("所有数据仅保存在本机，无需登录，不上传，不提供云备份")
+    }
+
+    private var localDataNoteAssetName: String {
+        locale.identifier.lowercased().hasPrefix("en")
+            ? "ProfileLocalDataEnglish"
+            : "ProfileLocalData"
     }
 
     private var activeHabitCount: Int {
@@ -663,12 +679,12 @@ struct SettingsView: View {
 
     private var profileSubtitle: String {
         if currentStreak > 0 {
-            return "坚持打卡第 \(currentStreak) 天"
+            return L10n.format("坚持打卡第 %d 天", currentStreak)
         }
         if bestStreak > 0 {
-            return "曾经连续 \(bestStreak) 天"
+            return L10n.format("曾经连续 %d 天", bestStreak)
         }
-        return "开始你的第一天打卡"
+        return L10n.text("开始你的第一天打卡")
     }
 
     private var metricDivider: some View {
@@ -685,21 +701,21 @@ struct SettingsView: View {
 
     private func metric(label: String, value: Int, unit: String) -> some View {
         VStack(spacing: 4) {
-            Text(label)
+            Text(L10n.text(label))
                 .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.secondaryText)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text("\(value)")
                     .font(.system(size: 24, weight: .heavy, design: .rounded))
                     .foregroundStyle(PlanetTheme.primaryText)
-                Text(unit)
+                Text(L10n.text(unit))
                     .font(.system(.caption2, design: .rounded, weight: .semibold))
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label) \(value) \(unit)")
+        .accessibilityLabel("\(L10n.text(label)) \(value) \(L10n.text(unit))")
     }
 
     private func menuRow(title: String, asset: String) -> some View {
@@ -709,9 +725,11 @@ struct SettingsView: View {
                 .interpolation(.high)
                 .scaledToFit()
                 .frame(width: 44, height: 44)
-            Text(title)
+            Text(L10n.text(title))
                 .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(PlanetTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.bold())
@@ -768,6 +786,22 @@ private struct GeneralSettingsView: View {
             PlanetAtmosphere()
             ScrollView {
                 VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        settingsLabel("语言", caption: "默认跟随系统", symbol: "globe")
+                        Spacer(minLength: 8)
+                        Picker("语言", selection: languageBinding) {
+                            ForEach(AppLanguage.allCases) { language in
+                                Text(language.title).tag(language)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                    }
+                    .frame(minHeight: 62)
+
+                    Divider().overlay(PlanetTheme.separator.opacity(0.6))
+
                     Toggle(isOn: soundBinding) {
                         settingsLabel("打卡声音", caption: "完成时播放一声小欢呼", symbol: "speaker.wave.2.fill")
                     }
@@ -794,6 +828,10 @@ private struct GeneralSettingsView: View {
         Binding(get: { store.settings.soundEnabled }, set: store.setSoundEnabled)
     }
 
+    private var languageBinding: Binding<AppLanguage> {
+        Binding(get: { store.settings.appLanguage }, set: store.setLanguage)
+    }
+
     private var hapticsBinding: Binding<Bool> {
         Binding(get: { store.settings.hapticsEnabled }, set: store.setHapticsEnabled)
     }
@@ -801,10 +839,10 @@ private struct GeneralSettingsView: View {
     private func settingsLabel(_ title: String, caption: String, symbol: String) -> some View {
         Label {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title)
+                Text(L10n.text(title))
                     .font(.system(.body, design: .rounded, weight: .bold))
                     .foregroundStyle(PlanetTheme.primaryText)
-                Text(caption)
+                Text(L10n.text(caption))
                     .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
@@ -871,22 +909,22 @@ private struct ReminderSettingsView: View {
 
     private var notificationTitle: String {
         switch store.notificationStatus {
-        case .notDetermined: "尚未开启"
-        case .denied: "未授权"
-        case .authorized: "已开启"
-        case .provisional: "临时允许"
-        case .ephemeral: "本次允许"
+        case .notDetermined: L10n.text("尚未开启")
+        case .denied: L10n.text("未授权")
+        case .authorized: L10n.text("已开启")
+        case .provisional: L10n.text("临时允许")
+        case .ephemeral: L10n.text("本次允许")
         }
     }
 
     private var notificationMessage: String {
         switch store.notificationStatus {
         case .notDetermined:
-            "为习惯设置提醒时间后，系统会询问通知权限。"
+            L10n.text("为习惯设置提醒时间后，系统会询问通知权限。")
         case .denied:
-            "提醒意图会保留，但需要在系统设置中允许通知后才能送达。"
+            L10n.text("提醒意图会保留，但需要在系统设置中允许通知后才能送达。")
         case .authorized, .provisional, .ephemeral:
-            "提醒只保存在这台设备上，可在习惯编辑页分别设置。"
+            L10n.text("提醒只保存在这台设备上，可在习惯编辑页分别设置。")
         }
     }
 
@@ -920,7 +958,7 @@ private struct StatisticsChartPoint: Identifiable {
     }
 
     var accessibilityLabel: String {
-        "\(label)，完成 \(completed) / \(planned)"
+        L10n.format("%@，完成 %d / %d", label, completed, planned)
     }
 }
 
@@ -990,8 +1028,8 @@ private struct YearMonthHeatmapTile: View {
     }
 
     private var accessibilityValue: String {
-        guard month.plannedDays > 0 else { return "没有计划" }
-        return "完成 \(month.completedDays) / \(month.plannedDays) 个计划日"
+        guard month.plannedDays > 0 else { return L10n.text("没有计划") }
+        return L10n.format("完成 %d / %d 个计划日", month.completedDays, month.plannedDays)
     }
 
     private func yearDot(_ cell: YearMonthSnapshot.Cell) -> some View {
@@ -1017,6 +1055,8 @@ private struct HeatmapDayView: View {
     let statistic: DailyStatistic
     let showsDayNumber: Bool
 
+    @Environment(\.locale) private var locale
+
     var body: some View {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
             .fill(statistic.plannedTaskCount == 0 ? PlanetTheme.separator.opacity(0.14) : statistic.intensity.color)
@@ -1030,11 +1070,11 @@ private struct HeatmapDayView: View {
                 }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(statistic.date.formatted(.dateTime.year().month().day().locale(Locale(identifier: "zh_CN"))))
+            .accessibilityLabel(statistic.date.formatted(.dateTime.year().month().day().locale(locale)))
             .accessibilityValue(
                 statistic.plannedTaskCount == 0
-                    ? "没有计划"
-                    : "完成 \(statistic.completedTaskCount) / \(statistic.plannedTaskCount)"
+                    ? L10n.text("没有计划")
+                    : L10n.format("完成 %d / %d", statistic.completedTaskCount, statistic.plannedTaskCount)
             )
     }
 }
@@ -1078,10 +1118,10 @@ private struct DataPrivacyView: View {
                 .foregroundStyle(PlanetTheme.violet)
                 .frame(width: 30)
             VStack(alignment: .leading, spacing: 5) {
-                Text(title)
+                Text(L10n.text(title))
                     .font(.headline)
                     .foregroundStyle(PlanetTheme.primaryText)
-                Text(message)
+                Text(L10n.text(message))
                     .font(.subheadline)
                     .foregroundStyle(PlanetTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1132,9 +1172,9 @@ private struct AboutCheckInView: View {
 private extension StatisticsPeriod {
     var shortTitle: String {
         switch self {
-        case .week: "周"
-        case .month: "月"
-        case .year: "年"
+        case .week: L10n.text("周")
+        case .month: L10n.text("月")
+        case .year: L10n.text("年")
         }
     }
 }

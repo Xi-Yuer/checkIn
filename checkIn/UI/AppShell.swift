@@ -13,11 +13,11 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .today: "首页"
-        case .habits: "习惯"
-        case .add: "新增"
-        case .statistics: "统计"
-        case .profile: "我的"
+        case .today: L10n.text("首页")
+        case .habits: L10n.text("习惯")
+        case .add: L10n.text("新增")
+        case .statistics: L10n.text("统计")
+        case .profile: L10n.text("我的")
         }
     }
 

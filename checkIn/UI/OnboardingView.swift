@@ -23,9 +23,10 @@ struct OnboardingView: View {
                 OnboardingPageView(page: page)
             }
             .ignoresSafeArea()
+            .accessibilityIdentifier("onboarding.carousel")
 
             Button(action: advance) {
-                Text(currentPage.buttonTitle)
+                Text(L10n.text(currentPage.buttonTitle))
             }
             .buttonStyle(
                 OnboardingActionButtonStyle(
@@ -39,7 +40,6 @@ struct OnboardingView: View {
         }
         .background(currentPage.fallbackBackground.ignoresSafeArea())
         .animation(reduceMotion ? nil : .easeOut(duration: 0.28), value: selectedPage)
-        .accessibilityIdentifier("onboarding")
     }
 
     private var currentPage: OnboardingPage {
@@ -127,7 +127,7 @@ private struct OnboardingPageView: View {
         }
         .ignoresSafeArea()
         .accessibilityElement()
-        .accessibilityLabel(page.accessibilityLabel)
+        .accessibilityLabel(L10n.text(page.accessibilityLabel))
         .accessibilityIdentifier("onboarding.page.\(page.id)")
     }
 }

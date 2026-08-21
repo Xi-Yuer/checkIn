@@ -25,7 +25,7 @@ struct HabitsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .confirmationDialog(
-            pendingDeletion.map { "删除“\($0.title)”？" } ?? "删除习惯？",
+            pendingDeletion.map { L10n.format("删除“%@”？", $0.title) } ?? L10n.text("删除习惯？"),
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
@@ -101,7 +101,10 @@ struct HabitsView: View {
                                 }
                             }
                         } label: {
-                            Label(habit.isArchived ? "恢复习惯" : "暂停习惯", systemImage: habit.isArchived ? "play.fill" : "pause.fill")
+                            Label(
+                                habit.isArchived ? L10n.text("恢复习惯") : L10n.text("暂停习惯"),
+                                systemImage: habit.isArchived ? "play.fill" : "pause.fill"
+                            )
                         }
                         Button(role: .destructive) { prepareDeletion(habit) } label: {
                             Label("删除习惯", systemImage: "trash")

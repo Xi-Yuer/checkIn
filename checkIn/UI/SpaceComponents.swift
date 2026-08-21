@@ -114,14 +114,14 @@ struct SpaceHeader: View {
 
     private var copy: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
+            Text(L10n.text(title))
                 .font(.system(.title2, design: .rounded, weight: .heavy))
                 .foregroundStyle(Color(hex: "#FFF9EE"))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
+                Text(L10n.text(subtitle))
                     .font(.subheadline)
                     .foregroundStyle(Color(hex: "#E5DAFF"))
                     .lineLimit(3)

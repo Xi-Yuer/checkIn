@@ -69,12 +69,12 @@ struct TodayHabitRow: View {
 
     private var checkAccessibilityLabel: String {
         if isComplete {
-            return "今日已完成"
+            return L10n.text("今日已完成")
         }
         if target > 1 {
-            return "为\(habit.title)打卡，已完成 \(completed)/\(target)"
+            return L10n.format("为%@打卡，已完成 %d/%d", habit.title, completed, target)
         }
-        return "为\(habit.title)打卡"
+        return L10n.format("为%@打卡", habit.title)
     }
 
     private var subtitle: String {
@@ -210,7 +210,7 @@ struct HabitSummaryRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 1) {
-                Text(habit.isArchived ? "已暂停" : "连续")
+                Text(habit.isArchived ? L10n.text("已暂停") : L10n.text("连续"))
                     .font(.system(.caption2, design: .rounded, weight: .semibold))
                     .foregroundStyle(PlanetTheme.secondaryText)
 
@@ -218,14 +218,18 @@ struct HabitSummaryRow: View {
                     Text("\(streak)")
                         .font(.system(size: 22, weight: .heavy, design: .rounded))
                         .foregroundStyle(PlanetTheme.primaryText)
-                    Text("天")
+                Text(L10n.text("天"))
                         .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
             }
             .frame(minWidth: 44, alignment: .trailing)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(habit.isArchived ? "已暂停，曾连续 \(streak) 天" : "连续 \(streak) 天")
+            .accessibilityLabel(
+                habit.isArchived
+                    ? L10n.format("已暂停，曾连续 %d 天", streak)
+                    : L10n.format("连续 %d 天", streak)
+            )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -255,7 +259,7 @@ struct FilterPill<Value: Hashable>: View {
         Button {
             selection = value
         } label: {
-            Text(title)
+            Text(L10n.text(title))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(selection == value ? Color.white : PlanetTheme.secondaryText)
                 .padding(.horizontal, 14)
@@ -278,11 +282,11 @@ struct SectionTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
+            Text(L10n.text(title))
                 .font(.title3.weight(.heavy))
                 .foregroundStyle(PlanetTheme.primaryText)
             if let subtitle {
-                Text(subtitle)
+                Text(L10n.text(subtitle))
                     .font(.caption)
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
@@ -295,9 +299,9 @@ extension TaskSchedule {
     var compactTitle: String {
         switch self {
         case .daily:
-            return "每天"
+            return L10n.text("每天")
         case .weekdays:
-            return "工作日"
+            return L10n.text("工作日")
         case let .custom(days):
             let ordered = Weekday.allCases.filter(days.contains)
             return ordered.map(\.shortTitle).joined(separator: " · ")

@@ -93,7 +93,7 @@ struct NotificationRequestFactory: Sendable {
     func requests(for task: TaskDTO) -> [UNNotificationRequest] {
         guard let hour = task.reminderHour, let minute = task.reminderMinute else { return [] }
         let content = UNMutableNotificationContent()
-        content.title = "今天也来点亮一颗星吧"
+        content.title = L10n.text("今天也来点亮一颗星吧")
         content.body = task.title
         content.sound = .default
         content.userInfo = ["taskID": task.id.uuidString]

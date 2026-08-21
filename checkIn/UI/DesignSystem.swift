@@ -1,6 +1,46 @@
 import SwiftUI
 import UIKit
 
+enum L10n {
+    private static let overrideKey = "app.language.override"
+
+    static func setLanguage(_ language: AppLanguage) {
+        if let code = language.localizationCode {
+            UserDefaults.standard.set(code, forKey: overrideKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: overrideKey)
+        }
+    }
+
+    static func text(_ key: String) -> String {
+        NSLocalizedString(key, bundle: localizedBundle, value: key, comment: "")
+    }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(
+            format: text(key),
+            locale: selectedLocale,
+            arguments: arguments
+        )
+    }
+
+    private static var selectedLocale: Locale {
+        guard let code = UserDefaults.standard.string(forKey: overrideKey) else {
+            return .autoupdatingCurrent
+        }
+        return Locale(identifier: code)
+    }
+
+    private static var localizedBundle: Bundle {
+        guard let code = UserDefaults.standard.string(forKey: overrideKey),
+              let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            return .main
+        }
+        return bundle
+    }
+}
+
 enum PlanetTheme {
     static let violet = Color(hex: "#7C3AED")
     static let lavender = Color(hex: "#A788FA")
@@ -328,16 +368,16 @@ struct EmptyStateView: View {
         VStack(spacing: 16) {
             MascotView(mood: mood, size: 124)
             VStack(spacing: 6) {
-                Text(title)
+                Text(L10n.text(title))
                     .font(.title3.weight(.bold))
                     .foregroundStyle(PlanetTheme.primaryText)
-                Text(message)
+                Text(L10n.text(message))
                     .font(.subheadline)
                     .foregroundStyle(PlanetTheme.secondaryText)
                     .multilineTextAlignment(.center)
             }
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
+                Button(L10n.text(actionTitle), action: action)
                     .buttonStyle(.borderedProminent)
                     .tint(PlanetTheme.violet)
                     .controlSize(.large)

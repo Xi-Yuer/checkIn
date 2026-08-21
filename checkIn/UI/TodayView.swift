@@ -4,6 +4,8 @@ struct TodayView: View {
     @ObservedObject var store: AppStore
     let onAdd: () -> Void
 
+    @Environment(\.locale) private var locale
+
     var body: some View {
         ZStack {
             PlanetAtmosphere()
@@ -92,7 +94,7 @@ struct TodayView: View {
 
     private func metric(value: String, label: String) -> some View {
         VStack(spacing: 3) {
-            Text(label)
+            Text(L10n.text(label))
                 .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(PlanetTheme.secondaryText)
             Text(value)
@@ -152,10 +154,13 @@ struct TodayView: View {
     }
 
     private var todayCaption: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 EEEE"
-        return formatter.string(from: store.today)
+        store.today.formatted(
+            .dateTime
+                .month(.abbreviated)
+                .day()
+                .weekday(.wide)
+                .locale(locale)
+        )
     }
 
     private var completionPercentage: String {
@@ -184,11 +189,11 @@ enum HomeBannerPeriod: CaseIterable {
 
     var accessibilityLabel: String {
         switch self {
-        case .morning: "早晨插画"
-        case .noon: "中午插画"
-        case .afternoon: "下午插画"
-        case .evening: "晚上插画"
-        case .night: "深夜插画"
+        case .morning: L10n.text("早晨插画")
+        case .noon: L10n.text("中午插画")
+        case .afternoon: L10n.text("下午插画")
+        case .evening: L10n.text("晚上插画")
+        case .night: L10n.text("深夜插画")
         }
     }
 

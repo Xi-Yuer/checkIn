@@ -5,6 +5,7 @@ struct HabitDetailView: View {
     let habitID: UUID
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @State private var showingEditor = false
     @State private var showingDeleteConfirmation = false
     @State private var historyCount = 0
@@ -65,7 +66,10 @@ struct HabitDetailView: View {
                                 }
                             }
                         } label: {
-                            Label(habit.isArchived ? "恢复习惯" : "暂停习惯", systemImage: habit.isArchived ? "play.fill" : "pause.fill")
+                            Label(
+                                habit.isArchived ? L10n.text("恢复习惯") : L10n.text("暂停习惯"),
+                                systemImage: habit.isArchived ? "play.fill" : "pause.fill"
+                            )
                         }
                         Button(role: .destructive) {
                             prepareDeletion()
@@ -87,7 +91,7 @@ struct HabitDetailView: View {
             if let habit { HabitEditorView(store: store, habit: habit) }
         }
         .confirmationDialog(
-            habit.map { "删除“\($0.title)”？" } ?? "删除习惯？",
+            habit.map { L10n.format("删除“%@”？", $0.title) } ?? L10n.text("删除习惯？"),
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
@@ -122,9 +126,9 @@ struct HabitDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 6) {
-                    Text("本月 \(monthRate)")
+                    Text(L10n.format("本月 %@", monthRate))
                     Text("·")
-                    Text("累计 \(historyCountValue) 次")
+                    Text(L10n.format("累计 %d 次", historyCountValue))
                     if habit.isArchived {
                         Text("·")
                         Text("已暂停")
@@ -148,7 +152,7 @@ struct HabitDetailView: View {
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("连续 \(streak) 天")
+            .accessibilityLabel(L10n.format("连续 %d 天", streak))
         }
         .qCard(padding: 14)
     }
@@ -162,7 +166,7 @@ struct HabitDetailView: View {
             VStack(spacing: 0) {
                 infoRow(symbol: "calendar", title: "重复计划", value: habit.schedule.compactTitle)
                 infoDivider
-                infoRow(symbol: "flag.fill", title: "每日目标", value: "\(habit.dailyTarget) 次")
+                infoRow(symbol: "flag.fill", title: "每日目标", value: L10n.format("%d 次", habit.dailyTarget))
                 infoDivider
                 infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
                 if let startDate = habit.startDate {
@@ -175,7 +179,7 @@ struct HabitDetailView: View {
                 }
                 if habit.isArchived {
                     infoDivider
-                    infoRow(symbol: "pause.fill", title: "状态", value: "已暂停")
+                    infoRow(symbol: "pause.fill", title: "状态", value: L10n.text("已暂停"))
                 }
             }
         }
@@ -332,7 +336,7 @@ struct HabitDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(PlanetTheme.violet)
                 .frame(width: 20)
-            Text(title)
+            Text(L10n.text(title))
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(PlanetTheme.secondaryText)
             Spacer(minLength: 12)
@@ -354,16 +358,13 @@ struct HabitDetailView: View {
 
     private func reminderText(_ habit: TaskDTO) -> String {
         guard habit.reminderEnabled, let hour = habit.reminderHour, let minute = habit.reminderMinute else {
-            return "未开启"
+            return L10n.text("未开启")
         }
         return String(format: "%02d:%02d", hour, minute)
     }
 
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "yyyy年M月d日"
-        return formatter.string(from: date)
+        date.formatted(.dateTime.year().month().day().locale(locale))
     }
 
     private var historyCountValue: Int {
@@ -410,8 +411,10 @@ struct HabitDetailView: View {
     private func todayStatusText(_ habit: TaskDTO) -> String {
         let completed = progress?.completed ?? 0
         let target = progress?.target ?? scheduleService.dailyTarget(for: habit, on: store.today, calendar: calendar)
-        if progress?.isComplete == true { return "已完成 \(completed)/\(target)，星光点亮了" }
-        return "已完成 \(completed)/\(target)，还差 \(max(0, target - completed)) 次"
+        if progress?.isComplete == true {
+            return L10n.format("已完成 %d/%d，星光点亮了", completed, target)
+        }
+        return L10n.format("已完成 %d/%d，还差 %d 次", completed, target, max(0, target - completed))
     }
 
     private func prepareDeletion() {

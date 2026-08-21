@@ -10,10 +10,10 @@ enum HabitCategory: Int16, CaseIterable, Codable, Hashable, Identifiable, Sendab
 
     var title: String {
         switch self {
-        case .learning: "学习"
-        case .exercise: "运动"
-        case .life: "生活"
-        case .other: "其他"
+        case .learning: L10n.text("学习")
+        case .exercise: L10n.text("运动")
+        case .life: L10n.text("生活")
+        case .other: L10n.text("其他")
         }
     }
 
@@ -37,10 +37,10 @@ enum TaskPriority: Int16, CaseIterable, Codable, Hashable, Identifiable, Sendabl
 
     var title: String {
         switch self {
-        case .low: "低"
-        case .normal: "普通"
-        case .high: "高"
-        case .urgent: "紧急"
+        case .low: L10n.text("低")
+        case .normal: L10n.text("普通")
+        case .high: L10n.text("高")
+        case .urgent: L10n.text("紧急")
         }
     }
 }
@@ -58,13 +58,13 @@ enum Weekday: Int16, CaseIterable, Codable, Hashable, Identifiable, Sendable {
 
     var shortTitle: String {
         switch self {
-        case .monday: "一"
-        case .tuesday: "二"
-        case .wednesday: "三"
-        case .thursday: "四"
-        case .friday: "五"
-        case .saturday: "六"
-        case .sunday: "日"
+        case .monday: L10n.text("周一缩写")
+        case .tuesday: L10n.text("周二缩写")
+        case .wednesday: L10n.text("周三缩写")
+        case .thursday: L10n.text("周四缩写")
+        case .friday: L10n.text("周五缩写")
+        case .saturday: L10n.text("周六缩写")
+        case .sunday: L10n.text("周日缩写")
         }
     }
 
@@ -159,12 +159,12 @@ enum TaskFilter: String, CaseIterable, Codable, Hashable, Identifiable, Sendable
 
     var title: String {
         switch self {
-        case .all: "全部"
-        case .active: "进行中"
-        case .ended: "已结束"
-        case .paused: "已暂停"
-        case .pendingToday: "待完成"
-        case .completedToday: "已完成"
+        case .all: L10n.text("全部")
+        case .active: L10n.text("进行中")
+        case .ended: L10n.text("已结束")
+        case .paused: L10n.text("已暂停")
+        case .pendingToday: L10n.text("待完成")
+        case .completedToday: L10n.text("已完成")
         }
     }
 }
@@ -179,10 +179,10 @@ enum TaskSort: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .manual: "手动"
-        case .priority: "优先级"
-        case .createdAt: "创建时间"
-        case .streak: "连续天数"
+        case .manual: L10n.text("手动")
+        case .priority: L10n.text("优先级")
+        case .createdAt: L10n.text("创建时间")
+        case .streak: L10n.text("连续天数")
         }
     }
 }
@@ -289,15 +289,15 @@ enum TaskValidationError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .emptyTitle: "请输入习惯名称"
-        case .titleTooLong: "习惯名称不能超过 40 个字"
-        case .noteTooLong: "备注不能超过 500 个字"
-        case .invalidDailyTarget: "每日目标需在 1 到 99 之间"
-        case .emptyIcon: "请选择图标"
-        case .invalidColor: "请选择有效颜色"
-        case .emptyCustomSchedule: "自定义频率至少选择一天"
-        case .endBeforeStart: "结束日期不能早于开始日期"
-        case .invalidReminderTime: "请选择有效提醒时间"
+        case .emptyTitle: L10n.text("请输入习惯名称")
+        case .titleTooLong: L10n.text("习惯名称不能超过 40 个字")
+        case .noteTooLong: L10n.text("备注不能超过 500 个字")
+        case .invalidDailyTarget: L10n.text("每日目标需在 1 到 99 之间")
+        case .emptyIcon: L10n.text("请选择图标")
+        case .invalidColor: L10n.text("请选择有效颜色")
+        case .emptyCustomSchedule: L10n.text("自定义频率至少选择一天")
+        case .endBeforeStart: L10n.text("结束日期不能早于开始日期")
+        case .invalidReminderTime: L10n.text("请选择有效提醒时间")
         }
     }
 }
@@ -407,12 +407,12 @@ enum RepositoryError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .taskNotFound: "这个习惯已不存在"
-        case .taskPaused: "已暂停的习惯不能打卡"
-        case .notScheduled: "今天不是这个习惯的计划日"
-        case .targetAlreadyReached: "今天的目标已经完成"
-        case .noCheckInToUndo: "今天没有可撤销的打卡"
-        case .invalidValue: "打卡数值必须大于零"
+        case .taskNotFound: L10n.text("这个习惯已不存在")
+        case .taskPaused: L10n.text("已暂停的习惯不能打卡")
+        case .notScheduled: L10n.text("今天不是这个习惯的计划日")
+        case .targetAlreadyReached: L10n.text("今天的目标已经完成")
+        case .noCheckInToUndo: L10n.text("今天没有可撤销的打卡")
+        case .invalidValue: L10n.text("打卡数值必须大于零")
         case let .persistence(message): message
         }
     }

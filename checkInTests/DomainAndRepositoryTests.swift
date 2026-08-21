@@ -13,6 +13,7 @@ final class DomainAndRepositoryTests: XCTestCase {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "zh_CN")
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2
         self.calendar = calendar
         now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 19, hour: 10))!
     }

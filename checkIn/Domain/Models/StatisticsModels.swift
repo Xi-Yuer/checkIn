@@ -9,9 +9,9 @@ enum StatisticsPeriod: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .week: "周统计"
-        case .month: "月统计"
-        case .year: "年统计"
+        case .week: L10n.text("周统计")
+        case .month: L10n.text("月统计")
+        case .year: L10n.text("年统计")
         }
     }
 }
@@ -84,9 +84,41 @@ enum AppAppearance: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .system: "跟随系统"
-        case .light: "浅色"
-        case .dark: "深色"
+        case .system: L10n.text("跟随系统")
+        case .light: L10n.text("浅色")
+        case .dark: L10n.text("深色")
+        }
+    }
+}
+
+enum AppLanguage: String, CaseIterable, Codable, Identifiable, Sendable {
+    case system
+    case simplifiedChinese
+    case english
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: L10n.text("语言跟随系统")
+        case .simplifiedChinese: L10n.text("简体中文")
+        case .english: "English"
+        }
+    }
+
+    var locale: Locale {
+        switch self {
+        case .system: .autoupdatingCurrent
+        case .simplifiedChinese: Locale(identifier: "zh-Hans")
+        case .english: Locale(identifier: "en")
+        }
+    }
+
+    var localizationCode: String? {
+        switch self {
+        case .system: nil
+        case .simplifiedChinese: "zh-Hans"
+        case .english: "en"
         }
     }
 }
@@ -96,8 +128,12 @@ struct AppSettings: Codable, Equatable, Sendable {
     var soundEnabled: Bool = true
     var hapticsEnabled: Bool = true
     var appearance: AppAppearance = .system
+    // Optional keeps settings saved by older app versions decodable.
+    var language: AppLanguage? = nil
     var taskFilter: TaskFilter = .all
     var taskSort: TaskSort = .manual
 
     static let `default` = AppSettings()
+
+    var appLanguage: AppLanguage { language ?? .system }
 }

@@ -1,0 +1,231 @@
+/* App and navigation */
+"打卡小星球" = "Habit Planet";
+"首页" = "Home";
+"习惯" = "Habits";
+"新增" = "Add";
+"统计" = "Stats";
+"我的" = "Me";
+"添加习惯" = "Add Habit";
+"暂时没能完成" = "Something Went Wrong";
+"知道了" = "OK";
+"正在载入" = "Loading";
+
+/* Today */
+"今日打卡" = "Today";
+"今日打卡，%@" = "Today, %@";
+"已打卡" = "Done";
+"未打卡" = "Left";
+"完成率" = "Progress";
+"今天还没有计划" = "Nothing planned for today";
+"从一个轻松的小目标开始，让每天都有一点进步。" = "Start with one small goal you can enjoy doing every day.";
+"添加第一个习惯" = "Add Your First Habit";
+"正在打卡" = "Checking in";
+"今日已完成" = "Done for today";
+"为%@打卡，已完成 %d/%d" = "Check in to %@. %d of %d done.";
+"为%@打卡" = "Check in to %@";
+"早晨插画" = "Morning illustration";
+"中午插画" = "Noon illustration";
+"下午插画" = "Afternoon illustration";
+"晚上插画" = "Evening illustration";
+"深夜插画" = "Night illustration";
+
+/* Habits */
+"我的习惯" = "My Habits";
+"%lld 个习惯" = "%lld total";
+"给生活放一颗小星星" = "Add a little win to your day";
+"建立一个每天都愿意完成的小目标。" = "Create a small goal you will look forward to each day.";
+"恢复习惯" = "Resume Habit";
+"暂停习惯" = "Pause Habit";
+"删除习惯" = "Delete Habit";
+"删除习惯？" = "Delete this habit?";
+"删除“%@”？" = "Delete “%@”?";
+"删除习惯和 %lld 条记录" = "Delete habit and history (%lld)";
+"取消" = "Cancel";
+"删除后无法恢复；暂停则会保留全部历史。" = "Deleting cannot be undone. Pause the habit to keep its history.";
+"连续" = "Streak";
+"已暂停" = "Paused";
+"天" = "days";
+"已暂停，曾连续 %d 天" = "Paused. Previous best: a %d-day streak.";
+"连续 %d 天" = "%d-day streak";
+"每天" = "Daily";
+"工作日" = "Weekdays";
+
+/* Add and edit habit */
+"保存习惯" = "Save Habit";
+"保存修改" = "Save Changes";
+"编辑习惯" = "Edit Habit";
+"保存" = "Save";
+"习惯名称" = "Habit Name";
+"例如：阅读 30 分钟" = "For example: Read for 30 minutes";
+"选一个图标" = "Choose an Icon";
+"选择打卡图标" = "Choose a habit icon";
+"向左滑动查看更多图标" = "Swipe left for more icons";
+"什么时候打卡" = "Schedule";
+"只在计划日计算连续天数" = "Only scheduled days count toward your streak";
+"自定义" = "Custom";
+"每日目标" = "Daily Goal";
+"%lld 次" = "%lld per day";
+"%d 次" = "%d per day";
+"设置开始日期" = "Set Start Date";
+"开始" = "Start";
+"设置结束日期" = "Set End Date";
+"结束" = "End";
+"打卡提醒" = "Reminder";
+"提醒时间" = "Reminder Time";
+
+/* Habit details */
+"这个习惯已不在轨道上" = "This habit is no longer here";
+"它可能已经被删除，返回习惯列表看看吧。" = "It may have been deleted. Head back to your habit list.";
+"习惯详情" = "Habit Details";
+"更多操作" = "More actions";
+"本月 %@" = "%@ this month";
+"累计 %d 次" = "%d total";
+"累计 %lld 次" = "%lld total";
+"习惯信息" = "Habit Info";
+"重复计划" = "Schedule";
+"开始日期" = "Start Date";
+"结束日期" = "End Date";
+"状态" = "Status";
+"今日目标" = "Today's Goal";
+"恢复这个习惯" = "Resume This Habit";
+"已完成" = "Done";
+"打卡" = "Check In";
+"撤销" = "Undo";
+"今天不是计划日" = "Not scheduled for today";
+"最近五周" = "Last 5 Weeks";
+"写给自己的话" = "Note to Self";
+"未开启" = "Off";
+"已完成 %d/%d，星光点亮了" = "%d of %d done. You made it!";
+"已完成 %d/%d，还差 %d 次" = "%d of %d done. %d to go.";
+
+/* Statistics */
+"周统计" = "Weekly";
+"月统计" = "Monthly";
+"年统计" = "Yearly";
+"星光进度" = "Overall Progress";
+"完成趋势" = "Progress Trend";
+"统计周期" = "Time Range";
+"上一个统计周期" = "Previous period";
+"下一个统计周期" = "Next period";
+"这个周期还没有计划数据" = "No planned habits in this period";
+"序号" = "Index";
+"完成率" = "Progress";
+"星光日历" = "Activity";
+"有计划的日期会在这里留下星光" = "Scheduled days will show up here";
+"等待第一颗星" = "Your first win is waiting";
+"建立一个习惯，开始记录属于你的轨迹。" = "Create a habit to start building your history.";
+"完成 %d / %d 个计划任务日" = "%d of %d planned days completed";
+"少" = "Less";
+"多" = "More";
+"没有计划" = "No plans";
+"完成 %d / %d 个计划日" = "%d of %d planned days completed";
+"完成 %d / %d" = "%d of %d completed";
+"%@，完成 %d / %d" = "%@: %d of %d completed";
+"周" = "Week";
+"月" = "Month";
+"年" = "Year";
+
+/* Profile and settings */
+"Hi～" = "Hi!";
+"坚持打卡第 %d 天" = "Day %d and counting!";
+"曾经连续 %d 天" = "Your best was a %d-day streak";
+"开始你的第一天打卡" = "Start with one small win";
+"项" = "today";
+"最佳" = "Best";
+"主题外观" = "Appearance";
+"通用设置" = "General";
+"语言" = "Language";
+"语言跟随系统" = "System Default";
+"简体中文" = "Chinese (Simplified)";
+"默认跟随系统" = "iPhone language by default";
+"关于我们" = "About";
+"所有数据仅保存在本机，无需登录，不上传，不提供云备份" = "All data stays on this device. No account, uploads, or cloud backup.";
+"选择星球外观" = "Choose an Appearance";
+"外观" = "Appearance";
+"跟随系统" = "System";
+"浅色" = "Light";
+"深色" = "Dark";
+"打卡声音" = "Check-in Sound";
+"完成时播放一声小欢呼" = "Play a sound when you finish";
+"触感反馈" = "Haptics";
+"让每次打卡更有实感" = "Add a tap of feedback to each check-in";
+"通知权限" = "Notification Access";
+"前往系统设置" = "Open Settings";
+"刷新通知状态" = "Refresh Status";
+"尚未开启" = "Not Set Up";
+"未授权" = "Not Allowed";
+"已开启" = "On";
+"临时允许" = "Allowed for Now";
+"本次允许" = "Allowed This Time";
+"为习惯设置提醒时间后，系统会询问通知权限。" = "iOS will ask for permission when you add your first reminder.";
+"提醒意图会保留，但需要在系统设置中允许通知后才能送达。" = "Your reminder is saved, but notifications must be allowed in Settings.";
+"提醒只保存在这台设备上，可在习惯编辑页分别设置。" = "Reminders stay on this device and can be set for each habit.";
+
+/* About and privacy */
+"只在本机保存" = "Stored on This Device";
+"习惯与打卡记录保存在这台设备的应用数据中，不会上传到我们的服务器。" = "Your habits and check-ins stay in the app on this device. They are not uploaded to our servers.";
+"跟随系统备份" = "System Backup";
+"数据可能随你的设备系统备份保存；是否备份由系统设置决定。" = "Your data may be included in an iOS device backup, depending on your system settings.";
+"没有云同步" = "No Cloud Sync";
+"当前版本不提供账号、跨设备同步、广告追踪或数据分析。" = "There are no accounts, cross-device sync, ad tracking, or analytics.";
+"数据备份" = "Data & Privacy";
+"养成好习惯，每天进步一点点" = "Small habits. Better days.";
+"版本 %@" = "Version %@";
+"重看新手引导" = "Replay Introduction";
+
+/* Onboarding */
+"开始打卡之旅" = "Get Started";
+"下一步" = "Next";
+"开始体验" = "Start Using the App";
+"打卡小星球，养成好习惯，每天进步一点点" = "Habit Planet. Build small habits and make every day count.";
+"制定目标，设定你的目标，让每一天更有方向" = "Set a goal and give each day a little direction.";
+"坚持打卡，每天完成打卡，积累小小的成就" = "Keep showing up and turn small wins into real progress.";
+"收获成长，见证你的蜕变，成为更好的自己" = "See how far you have come, one day at a time.";
+
+/* Categories, filters, and sorting */
+"学习" = "Learning";
+"运动" = "Fitness";
+"生活" = "Lifestyle";
+"其他" = "Other";
+"低" = "Low";
+"普通" = "Normal";
+"高" = "High";
+"紧急" = "Urgent";
+"周一缩写" = "M";
+"周二缩写" = "T";
+"周三缩写" = "W";
+"周四缩写" = "T";
+"周五缩写" = "F";
+"周六缩写" = "S";
+"周日缩写" = "S";
+"全部" = "All";
+"进行中" = "Active";
+"已结束" = "Ended";
+"待完成" = "To Do";
+"手动" = "Manual";
+"优先级" = "Priority";
+"创建时间" = "Date Created";
+"连续天数" = "Streak";
+
+/* Validation and errors */
+"请输入习惯名称" = "Enter a habit name.";
+"习惯名称不能超过 40 个字" = "Keep the habit name under 40 characters.";
+"备注不能超过 500 个字" = "Keep the note under 500 characters.";
+"每日目标需在 1 到 99 之间" = "Choose a daily goal from 1 to 99.";
+"请选择图标" = "Choose an icon.";
+"请选择有效颜色" = "Choose a valid color.";
+"自定义频率至少选择一天" = "Choose at least one day for a custom schedule.";
+"结束日期不能早于开始日期" = "The end date cannot be before the start date.";
+"请选择有效提醒时间" = "Choose a valid reminder time.";
+"这个习惯已不存在" = "This habit no longer exists.";
+"已暂停的习惯不能打卡" = "Resume this habit before checking in.";
+"今天不是这个习惯的计划日" = "This habit is not scheduled for today.";
+"今天的目标已经完成" = "Today's goal is already complete.";
+"今天没有可撤销的打卡" = "There are no check-ins to undo today.";
+"打卡数值必须大于零" = "The check-in value must be greater than zero.";
+
+/* Celebration and notifications */
+"完成进度" = "Completion progress";
+"今日星光已点亮" = "You did it today!";
+"太棒了" = "Nice!";
+"今天也来点亮一颗星吧" = "Ready for today's small win?";

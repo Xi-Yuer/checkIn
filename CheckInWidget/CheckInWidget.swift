@@ -2,6 +2,20 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+private enum WidgetL10n {
+    static func text(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
+    }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(
+            format: NSLocalizedString(key, comment: ""),
+            locale: Locale.autoupdatingCurrent,
+            arguments: arguments
+        )
+    }
+}
+
 @main
 struct CheckInWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -292,7 +306,9 @@ private struct WidgetTaskLabel: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(task.title)，已完成 \(count) 次，目标 \(task.dailyGoal) 次")
+        .accessibilityLabel(
+            WidgetL10n.format("%@，已完成 %d 次，目标 %d 次", task.title, count, task.dailyGoal)
+        )
     }
 }
 
@@ -404,7 +420,7 @@ private extension WidgetSnapshot {
             tasks: [
                 WidgetTaskSnapshot(
                     id: UUID(uuidString: "22F3BBD6-81B4-4874-977A-57BE2EFC8101")!,
-                    title: "读书 30 分钟",
+                    title: WidgetL10n.text("读书 30 分钟"),
                     symbolName: "book.closed.fill",
                     colorHex: "7C3AED",
                     sortOrder: 0,
@@ -414,7 +430,7 @@ private extension WidgetSnapshot {
                 ),
                 WidgetTaskSnapshot(
                     id: UUID(uuidString: "22F3BBD6-81B4-4874-977A-57BE2EFC8102")!,
-                    title: "喝水 2000ml",
+                    title: WidgetL10n.text("喝水 2000ml"),
                     symbolName: "waterbottle.fill",
                     colorHex: "38BDF8",
                     sortOrder: 1,
@@ -424,7 +440,7 @@ private extension WidgetSnapshot {
                 ),
                 WidgetTaskSnapshot(
                     id: UUID(uuidString: "22F3BBD6-81B4-4874-977A-57BE2EFC8103")!,
-                    title: "跑步 5 公里",
+                    title: WidgetL10n.text("跑步 5 公里"),
                     symbolName: "figure.run",
                     colorHex: "F87171",
                     sortOrder: 2,
