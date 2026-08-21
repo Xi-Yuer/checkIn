@@ -574,6 +574,40 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(multiple.focusedTask(selectedIdentifier: UUID().uuidString), .invalidSelection)
     }
 
+    func testWidgetTaskSnapshotDecodesMissingStreakAsZero() throws {
+        let json = """
+        {
+          "id": "22F3BBD6-81B4-4874-977A-57BE2EFC8101",
+          "title": "阅读",
+          "symbolName": "book.fill",
+          "colorHex": "#7C3AED",
+          "sortOrder": 0,
+          "dailyGoal": 1,
+          "completedCount": 0,
+          "isPaused": false,
+          "schedule": { "kind": "daily", "weekdays": [] }
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(WidgetTaskSnapshot.self, from: json)
+        XCTAssertEqual(decoded.currentStreak, 0)
+        XCTAssertEqual(decoded.dailyGoal, 1)
+    }
+
+    func testWidgetTaskPersistedDaysCountsFromStartDayInclusive() {
+        let task = WidgetTaskSnapshot(
+            id: UUID(),
+            title: "阅读",
+            symbolName: "book.fill",
+            colorHex: "#7C3AED",
+            sortOrder: 0,
+            dailyGoal: 1,
+            completedCount: 0,
+            schedule: WidgetSchedule(kind: .daily, startDayKey: "2026-08-01")
+        )
+        XCTAssertEqual(task.persistedDays(on: date(2026, 8, 1), calendar: calendar), 1)
+        XCTAssertEqual(task.persistedDays(on: date(2026, 8, 21), calendar: calendar), 21)
+    }
+
     func testAppImportsWidgetQueueOnceAndRemovesIt() async throws {
         let persistence = PersistenceController(inMemory: true)
         let repositories = CoreDataRepositories(

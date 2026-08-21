@@ -35,7 +35,7 @@ struct CheckInWidget: Widget {
         }
         .configurationDisplayName("打卡小星球")
         .description("查看今天的整体习惯进度。")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
@@ -106,8 +106,6 @@ struct CheckInWidgetView: View {
     private func content(_ snapshot: WidgetSnapshot) -> some View {
         let tasks = snapshot.scheduledTasks(on: entry.date)
         switch family {
-        case .systemSmall:
-            SmallCheckInWidget(snapshot: snapshot, tasks: tasks, date: entry.date)
         case .systemMedium:
             MediumCheckInWidget(
                 snapshot: snapshot,
@@ -118,7 +116,12 @@ struct CheckInWidgetView: View {
         case .systemLarge:
             LargeCheckInWidget(snapshot: snapshot, tasks: tasks, date: entry.date)
         default:
-            SmallCheckInWidget(snapshot: snapshot, tasks: tasks, date: entry.date)
+            MediumCheckInWidget(
+                snapshot: snapshot,
+                tasks: tasks,
+                date: entry.date,
+                carouselOffset: entry.carouselOffset
+            )
         }
     }
 
@@ -264,53 +267,80 @@ private struct FocusedHabitWidgetView: View {
         let isScheduled = task.schedule.isScheduled(on: entry.date)
         let isComplete = count >= task.dailyGoal
 
-        return ZStack(alignment: .bottomTrailing) {
-            HabitArtwork(iconKey: task.symbolName)
-                .frame(width: 120, height: 120)
-                .offset(x: 16, y: -8)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+        return VStack(alignment: .leading, spacing: 0) {
+            Link(destination: CheckInDeepLink.task(task.id).url) {
+                Text(task.title)
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .topLeading)
+            }
+            .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Link(destination: CheckInDeepLink.task(task.id).url) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(task.title)
-                            .font(.system(size: 17, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 4)
 
-                        Text("\(count)/\(task.dailyGoal)")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(task.persistedDays(on: entry.date))")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text("天")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 4)
+
+                if task.dailyGoal > 1 {
+                    Text("\(count)/\(task.dailyGoal)")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundStyle(CheckInWidgetPalette.button)
+                        .monospacedDigit()
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(CheckInWidgetPalette.button.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            }
+
+            Text("连续 \(task.currentStreak) 天")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Spacer(minLength: 5)
+
+            if !isScheduled {
+                statusButton("今天休息", background: Color.secondary.opacity(0.18), foreground: .secondary)
+            } else if isComplete {
+                statusButton("今天完成啦", background: CheckInWidgetPalette.mint, foreground: .white)
+            } else if #available(iOSApplicationExtension 17.0, *) {
+                Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
+                    statusButton("打卡 +1", background: CheckInWidgetPalette.button, foreground: .white)
                 }
                 .buttonStyle(.plain)
-
-                Spacer(minLength: 0)
-
-                if !isScheduled {
-                    statusButton("今天休息", background: Color.secondary.opacity(0.18), foreground: .secondary)
-                } else if isComplete {
-                    statusButton("今天完成啦", background: CheckInWidgetPalette.mint, foreground: .white)
-                } else if #available(iOSApplicationExtension 17.0, *) {
-                    Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
-                        statusButton("打卡 +1", background: CheckInWidgetPalette.button, foreground: .white)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Link(destination: CheckInDeepLink.task(task.id).url) {
-                        statusButton("打开打卡", background: CheckInWidgetPalette.button, foreground: .white)
-                    }
-                    .buttonStyle(.plain)
+            } else {
+                Link(destination: CheckInDeepLink.task(task.id).url) {
+                    statusButton("打开打卡", background: CheckInWidgetPalette.button, foreground: .white)
                 }
+                .buttonStyle(.plain)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(task.title)，\(count)/\(task.dailyGoal)")
+        .accessibilityLabel(accessibilityText(task: task, count: count))
+    }
+
+    private func accessibilityText(task: WidgetTaskSnapshot, count: Int) -> String {
+        var parts = [
+            task.title,
+            "已坚持 \(task.persistedDays(on: entry.date)) 天",
+            "连续 \(task.currentStreak) 天"
+        ]
+        if task.dailyGoal > 1 {
+            parts.append("\(count)/\(task.dailyGoal)")
+        }
+        return parts.joined(separator: "，")
     }
 
     private func messageState(title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {
@@ -341,12 +371,12 @@ private struct FocusedHabitWidgetView: View {
         foreground: Color
     ) -> some View {
         Text(title)
-            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .font(.system(size: 14, weight: .bold, design: .rounded))
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .frame(height: 34)
+            .frame(height: 38)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
     }
 }
 
@@ -387,58 +417,6 @@ struct RecordFocusedCheckInIntent: AppIntent {
     }
 }
 
-private struct SmallCheckInWidget: View {
-    let snapshot: WidgetSnapshot
-    let tasks: [WidgetTaskSnapshot]
-    let date: Date
-
-    var body: some View {
-        let progress = snapshot.progress(on: date)
-        let nextTask = tasks.first(where: { task in
-            task.count(on: date, snapshotDayKey: snapshot.dayKey) < task.dailyGoal
-        }) ?? tasks.first
-
-        ZStack(alignment: .bottomTrailing) {
-            Image("WidgetMediumCatV2")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88)
-                .offset(x: 14, y: 8)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(WidgetChineseDate.line(date))
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text("\(progress.completed)/\(progress.goal)")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
-
-                Spacer(minLength: 0)
-
-                if let nextTask {
-                    HStack(spacing: 6) {
-                        HabitArtwork(iconKey: nextTask.symbolName)
-                            .frame(width: 22, height: 22)
-                        Text(nextTask.title)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                    }
-                    .padding(.trailing, 52)
-                } else {
-                    Text("今天完成啦")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        }
-    }
-}
-
 private struct MediumCheckInWidget: View {
     let snapshot: WidgetSnapshot
     let tasks: [WidgetTaskSnapshot]
@@ -446,60 +424,114 @@ private struct MediumCheckInWidget: View {
     let carouselOffset: Int
 
     var body: some View {
-        let progress = snapshot.progress(on: date)
-        ZStack(alignment: .bottomTrailing) {
-            Image("WidgetMediumCatV2")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 108)
-                .offset(x: 18, y: 10)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(WidgetChineseDate.line(date))
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text("\(progress.completed)/\(progress.goal)")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
-
-                HStack(spacing: 8) {
-                    if tasks.isEmpty {
+        Group {
+            if tasks.isEmpty {
+                HStack(spacing: 12) {
+                    Image("WidgetMediumCatV2")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 116)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("今天完成啦")
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    } else {
-                        HabitArtwork(iconKey: currentTask.symbolName)
-                            .frame(width: 28, height: 28)
-                        Link(destination: CheckInDeepLink.task(currentTask.id).url) {
-                            Text(currentTask.title)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if #available(iOSApplicationExtension 17.0, *), !tasks.isEmpty {
-                        Button(intent: AdvanceWidgetTaskIntent()) {
-                            Text("下一项")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(CheckInWidgetPalette.button)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(CheckInWidgetPalette.button.opacity(0.12))
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        Text("所有计划都已完成")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.trailing, 72)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            } else {
+                taskContent(currentTask)
+            }
+        }
+    }
+
+    private func taskContent(_ task: WidgetTaskSnapshot) -> some View {
+        let count = task.count(on: date, snapshotDayKey: snapshot.dayKey)
+        let isComplete = count >= task.dailyGoal
+
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                Link(destination: CheckInDeepLink.task(task.id).url) {
+                    HStack(spacing: 9) {
+                        HabitArtwork(iconKey: task.symbolName)
+                            .frame(width: 38, height: 38)
+                        Text(task.title)
+                            .font(.system(size: 15, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 2)
+
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text("\(task.currentStreak)")
+                        .font(.system(size: 42, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .monospacedDigit()
+                    Text("连续天数")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 2)
+
+                if #available(iOSApplicationExtension 17.0, *) {
+                    Button(intent: AdvanceWidgetTaskIntent()) {
+                        Label("下一条计划", systemImage: "arrow.right")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(CheckInWidgetPalette.button)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .background(CheckInWidgetPalette.button.opacity(0.11))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+            Divider()
+
+            VStack(spacing: 7) {
+                MediumScheduleGrid(task: task, date: date, isCompleteToday: isComplete)
+
+                Spacer(minLength: 0)
+
+                if isComplete {
+                    mediumActionButton("今日已完成", systemImage: "checkmark", background: CheckInWidgetPalette.mint)
+                } else if #available(iOSApplicationExtension 17.0, *) {
+                    Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
+                        mediumActionButton("打卡", systemImage: "plus", background: CheckInWidgetPalette.button)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Link(destination: CheckInDeepLink.task(task.id).url) {
+                        mediumActionButton("打开打卡", systemImage: "plus", background: CheckInWidgetPalette.button)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(width: 135)
         }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func mediumActionButton(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        background: Color
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 36)
+            .background(background)
+            .clipShape(Capsule())
     }
 
     private var currentTask: WidgetTaskSnapshot {
@@ -511,6 +543,66 @@ private struct MediumCheckInWidget: View {
     private func positiveModulo(_ value: Int, _ divisor: Int) -> Int {
         guard divisor > 0 else { return 0 }
         return ((value % divisor) + divisor) % divisor
+    }
+}
+
+private struct MediumScheduleGrid: View {
+    let task: WidgetTaskSnapshot
+    let date: Date
+    let isCompleteToday: Bool
+
+    private let columns = Array(repeating: GridItem(.fixed(16), spacing: 3), count: 7)
+    private let weekdayLabels = ["一", "二", "三", "四", "五", "六", "日"]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 3) {
+                ForEach(weekdayLabels, id: \.self) { label in
+                    Text(label)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                }
+            }
+
+            LazyVGrid(columns: columns, spacing: 7) {
+                ForEach(Array(scheduleDays.enumerated()), id: \.offset) { index, day in
+                    let scheduled = task.schedule.isScheduled(on: day)
+                    let isToday = Calendar.autoupdatingCurrent.isDate(day, inSameDayAs: date)
+
+                    ZStack {
+                        Circle()
+                            .fill(dotColor(scheduled: scheduled, isToday: isToday))
+                            .frame(width: 16, height: 16)
+                        if isToday {
+                            Image(systemName: isCompleteToday ? "checkmark" : "star.fill")
+                                .font(.system(size: 7, weight: .heavy))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .accessibilityLabel(dotAccessibilityLabel(index: index, scheduled: scheduled, isToday: isToday))
+                }
+            }
+        }
+    }
+
+    private var scheduleDays: [Date] {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: date)
+        let weekday = calendar.component(.weekday, from: today)
+        let daysFromMonday = (weekday + 5) % 7
+        let monday = calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
+        return (0..<21).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
+    }
+
+    private func dotColor(scheduled: Bool, isToday: Bool) -> Color {
+        if isToday { return isCompleteToday ? CheckInWidgetPalette.mint : CheckInWidgetPalette.sun }
+        return scheduled ? Color.secondary.opacity(0.20) : Color.secondary.opacity(0.07)
+    }
+
+    private func dotAccessibilityLabel(index: Int, scheduled: Bool, isToday: Bool) -> String {
+        let prefix = isToday ? "今天" : "第 \(index + 1) 天"
+        return "\(prefix)，\(scheduled ? "计划日" : "休息日")"
     }
 }
 
@@ -617,6 +709,7 @@ struct AdvanceWidgetTaskIntent: AppIntent {
 private enum CheckInWidgetPalette {
     static let button = Color(checkInHex: "6D4AFF")
     static let mint = Color(checkInHex: "34D399")
+    static let sun = Color(checkInHex: "FFB800")
 }
 
 private extension View {
@@ -669,7 +762,8 @@ private extension WidgetSnapshot {
                     sortOrder: 0,
                     dailyGoal: 1,
                     completedCount: 1,
-                    schedule: WidgetSchedule(kind: .daily)
+                    schedule: WidgetSchedule(kind: .daily),
+                    currentStreak: 5
                 ),
                 WidgetTaskSnapshot(
                     id: UUID(uuidString: "22F3BBD6-81B4-4874-977A-57BE2EFC8102")!,
@@ -679,7 +773,8 @@ private extension WidgetSnapshot {
                     sortOrder: 1,
                     dailyGoal: 8,
                     completedCount: 5,
-                    schedule: WidgetSchedule(kind: .daily)
+                    schedule: WidgetSchedule(kind: .daily),
+                    currentStreak: 12
                 ),
                 WidgetTaskSnapshot(
                     id: UUID(uuidString: "22F3BBD6-81B4-4874-977A-57BE2EFC8103")!,

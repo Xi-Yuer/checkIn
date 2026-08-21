@@ -63,6 +63,7 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
     public var completedCount: Int
     public var isPaused: Bool
     public var schedule: WidgetSchedule
+    public var currentStreak: Int
 
     public init(
         id: UUID,
@@ -73,7 +74,8 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         dailyGoal: Int,
         completedCount: Int,
         isPaused: Bool = false,
-        schedule: WidgetSchedule
+        schedule: WidgetSchedule,
+        currentStreak: Int = 0
     ) {
         self.id = id
         self.title = title
@@ -84,12 +86,38 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         self.completedCount = max(0, completedCount)
         self.isPaused = isPaused
         self.schedule = schedule
+        self.currentStreak = max(0, currentStreak)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        symbolName = try container.decode(String.self, forKey: .symbolName)
+        colorHex = try container.decode(String.self, forKey: .colorHex)
+        sortOrder = try container.decode(Int.self, forKey: .sortOrder)
+        dailyGoal = try container.decode(Int.self, forKey: .dailyGoal)
+        completedCount = try container.decode(Int.self, forKey: .completedCount)
+        isPaused = try container.decodeIfPresent(Bool.self, forKey: .isPaused) ?? false
+        schedule = try container.decode(WidgetSchedule.self, forKey: .schedule)
+        currentStreak = try container.decodeIfPresent(Int.self, forKey: .currentStreak) ?? 0
     }
 
     public func count(on date: Date, snapshotDayKey: String, calendar: Calendar = .autoupdatingCurrent) -> Int {
         WidgetDayKey.string(from: date, calendar: calendar) == snapshotDayKey
             ? min(completedCount, dailyGoal)
             : 0
+    }
+
+    public func persistedDays(on date: Date, calendar: Calendar = .autoupdatingCurrent) -> Int {
+        guard let startKey = schedule.startDayKey,
+              let start = WidgetDayKey.date(from: startKey, calendar: calendar) else {
+            return 1
+        }
+        let from = calendar.startOfDay(for: start)
+        let to = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: from, to: to).day ?? 0
+        return max(1, days + 1)
     }
 }
 
@@ -250,6 +278,9 @@ public struct AppGroupWidgetSnapshotStore: WidgetSnapshotStore, Sendable {
                       task.schedule.isScheduled(on: date),
                       task.completedCount < task.dailyGoal else { return snapshot }
                 snapshot.tasks[index].completedCount += 1
+                if snapshot.tasks[index].completedCount >= task.dailyGoal {
+                    snapshot.tasks[index].currentStreak += 1
+                }
                 let updatedData = try encoder.encode(snapshot)
                 guard updatedData.count <= CheckInSharedConstants.maximumSnapshotBytes else {
                     throw WidgetSnapshotStoreError.snapshotTooLarge
@@ -279,6 +310,17 @@ public enum WidgetDayKey {
             components.month ?? 0,
             components.day ?? 0
         )
+    }
+
+    public static func date(from key: String, calendar: Calendar = .autoupdatingCurrent) -> Date? {
+        let parts = key.split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else {
+            return nil
+        }
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
     }
 }
 
