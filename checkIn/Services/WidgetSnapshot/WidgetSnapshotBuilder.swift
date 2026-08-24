@@ -54,7 +54,12 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
                         kind: plan.schedule.widgetKind,
                         weekdays: plan.schedule.selectedWeekdays.map { Int($0.rawValue) },
                         startDayKey: plan.startDayKey ?? task.createdDayKey,
-                        endDayKey: plan.endDayKey
+                        endDayKey: plan.endDayKey,
+                        specificDayKeys: (0..<9).compactMap { offset in
+                            guard let candidate = calendar.date(byAdding: .day, value: offset, to: date),
+                                  scheduleService.isScheduled(task, on: candidate, calendar: calendar) else { return nil }
+                            return DayKey(date: candidate, calendar: calendar).rawValue
+                        }
                     ),
                     currentStreak: streaks[task.id] ?? 0
                 )
@@ -98,6 +103,7 @@ private extension TaskSchedule {
         case .daily: .daily
         case .weekdays: .weekdays
         case .custom: .custom
+        case .specificDates: .specificDates
         }
     }
 }

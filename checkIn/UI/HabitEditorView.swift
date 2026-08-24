@@ -8,7 +8,12 @@ struct HabitEditorView: View {
 
     @State private var draft: TaskDraft
     @State private var scheduleType: TaskScheduleType
+    @State private var regularScheduleType: TaskScheduleType
     @State private var selectedWeekdays: Set<Weekday>
+    @State private var specificDates: [TaskSpecificDate]
+    @State private var countdownDays: Int
+    @State private var showingSpecificDatePicker = false
+    @State private var selectedCalendarDates: Set<DateComponents>
     @State private var hasStartDate: Bool
     @State private var hasEndDate: Bool
     @State private var startDate: Date
@@ -23,7 +28,13 @@ struct HabitEditorView: View {
         let initialDraft = habit?.draft ?? TaskDraft()
         _draft = State(initialValue: initialDraft)
         _scheduleType = State(initialValue: initialDraft.schedule.type)
+        _regularScheduleType = State(initialValue: initialDraft.schedule.type == .specificDates ? .daily : initialDraft.schedule.type)
         _selectedWeekdays = State(initialValue: initialDraft.schedule.selectedWeekdays)
+        _specificDates = State(initialValue: initialDraft.schedule.specificDateEntries)
+        _countdownDays = State(initialValue: initialDraft.schedule.countdownDays)
+        _selectedCalendarDates = State(initialValue: Set(initialDraft.schedule.specificDateEntries.compactMap {
+            DayKey(rawValue: $0.dayKey).date().map { Calendar.current.dateComponents([.year, .month, .day], from: $0) }
+        }))
         _hasStartDate = State(initialValue: initialDraft.startDate != nil)
         _hasEndDate = State(initialValue: initialDraft.endDate != nil)
         let now = Date()
@@ -89,6 +100,9 @@ struct HabitEditorView: View {
         }
         .tint(PlanetTheme.violet)
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showingSpecificDatePicker) {
+            specificDatePickerSheet
+        }
     }
 
     private var identitySection: some View {
@@ -159,34 +173,28 @@ struct HabitEditorView: View {
                     .foregroundStyle(PlanetTheme.secondaryText)
             }
 
-            HStack(spacing: 8) {
-                scheduleButton(.daily, title: "每天")
-                scheduleButton(.weekdays, title: "工作日")
-                scheduleButton(.custom, title: "自定义")
-            }
-
-            if scheduleType == .custom {
-                HStack(spacing: 6) {
-                    ForEach(Weekday.allCases) { weekday in
-                        Button {
-                            if selectedWeekdays.contains(weekday) {
-                                selectedWeekdays.remove(weekday)
-                            } else {
-                                selectedWeekdays.insert(weekday)
-                            }
-                        } label: {
-                            Text(weekday.shortTitle)
-                                .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                .foregroundStyle(selectedWeekdays.contains(weekday) ? Color.white : PlanetTheme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(selectedWeekdays.contains(weekday) ? PlanetTheme.lavender : PlanetTheme.mutedSurface)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(selectedWeekdays.contains(weekday) ? .isSelected : [])
-                    }
+            Button {
+                synchronizeCalendarSelection()
+                showingSpecificDatePicker = true
+            } label: {
+                HStack(spacing: 12) {
+                    Text("重复计划")
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Spacer()
+                    Text(scheduleSelectionSummary)
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(PlanetTheme.separator)
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
             Stepper(value: $draft.dailyTarget, in: 1...99) {
                 HStack {
@@ -199,6 +207,7 @@ struct HabitEditorView: View {
                 }
             }
 
+            if scheduleType != .specificDates {
             Toggle("设置开始日期", isOn: $hasStartDate)
                 .font(.system(.body, design: .rounded, weight: .medium))
                 .tint(PlanetTheme.lavender)
@@ -215,9 +224,10 @@ struct HabitEditorView: View {
                     .datePickerStyle(.compact)
                     .font(.system(.body, design: .rounded))
             }
+            }
 
             Toggle(isOn: $draft.reminderEnabled) {
-                Label("打卡提醒", systemImage: "bell.fill")
+                Text("打卡提醒")
                     .font(.system(.body, design: .rounded, weight: .medium))
             }
             .tint(PlanetTheme.mint)
@@ -227,6 +237,20 @@ struct HabitEditorView: View {
                     .datePickerStyle(.compact)
                     .font(.system(.body, design: .rounded))
             }
+
+            Divider()
+                .overlay(PlanetTheme.separator.opacity(0.48))
+
+            Toggle(isOn: $draft.autoCheckInEnabled) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("自动打卡")
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                    Text("开启后次日生效，计划日将自动完成打卡。")
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+            }
+            .tint(PlanetTheme.mint)
         }
         .padding(18)
         .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
@@ -240,6 +264,7 @@ struct HabitEditorView: View {
         Button {
             withAnimation(.easeOut(duration: 0.18)) {
                 scheduleType = type
+                regularScheduleType = type
             }
         } label: {
             Text(L10n.text(title))
@@ -261,9 +286,10 @@ struct HabitEditorView: View {
         case .daily: value.schedule = .daily
         case .weekdays: value.schedule = .weekdays
         case .custom: value.schedule = .custom(selectedWeekdays)
+        case .specificDates: value.schedule = .specificDates(specificDates, countdownDays: countdownDays)
         }
-        value.startDate = hasStartDate ? startDate : nil
-        value.endDate = hasEndDate ? endDate : nil
+        value.startDate = scheduleType == .specificDates ? nil : (hasStartDate ? startDate : nil)
+        value.endDate = scheduleType == .specificDates ? nil : (hasEndDate ? endDate : nil)
         if value.reminderEnabled {
             let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
             value.reminderHour = components.hour
@@ -285,6 +311,209 @@ struct HabitEditorView: View {
             let savedID = await store.saveHabit(value, id: editingID)
             isSaving = false
             if savedID != nil { dismiss() }
+        }
+    }
+
+    private func specificDateBinding(at index: Int) -> Binding<Date> {
+        Binding(
+            get: { DayKey(rawValue: specificDates[index].dayKey).date() ?? Date() },
+            set: { specificDates[index].dayKey = DayKey(date: $0).rawValue }
+        )
+    }
+
+    private func recurrenceBinding(at index: Int) -> Binding<SpecificDateRecurrence> {
+        Binding(
+            get: { specificDates[index].recurrence },
+            set: { specificDates[index].recurrence = $0 }
+        )
+    }
+
+    private var specificDatePickerSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    VStack(spacing: 12) {
+                        frequencyOption(.daily, title: "每天", subtitle: "每天都安排一次打卡", symbol: "sun.max.fill")
+                        frequencyOption(.weekdays, title: "工作日", subtitle: "周一至周五打卡", symbol: "briefcase.fill")
+                        frequencyOption(.custom, title: "按星期", subtitle: "选择每周固定的日期", symbol: "calendar")
+                        frequencyOption(.specificDates, title: "指定日期", subtitle: "单次日期或每年纪念日", symbol: "calendar.badge.plus")
+                    }
+
+                    if scheduleType == .custom {
+                        weekdayPicker
+                            .padding(18)
+                            .background(PlanetTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    }
+
+                    if scheduleType == .specificDates {
+                        VStack(spacing: 18) {
+                            MultiDatePicker("选择日期", selection: $selectedCalendarDates)
+                                .tint(PlanetTheme.violet)
+                                .padding(16)
+                                .background(PlanetTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                                .onChange(of: selectedCalendarDates) { _ in synchronizeSpecificDates() }
+
+                            Stepper(value: $countdownDays, in: 1...30) {
+                                HStack {
+                                    Text("提前展示")
+                                    Spacer()
+                                    Text(L10n.format("提前 %d 天", countdownDays))
+                                        .foregroundStyle(PlanetTheme.violet)
+                                }
+                                .font(.system(.body, design: .rounded, weight: .medium))
+                            }
+                            .padding(.horizontal, 18)
+                            .frame(minHeight: 60)
+                            .background(PlanetTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        }
+
+                        if !specificDates.isEmpty {
+                        VStack(spacing: 12) {
+                            ForEach(Array(specificDates.indices), id: \.self) { index in
+                                HStack(spacing: 12) {
+                                    Text(specificDateBinding(at: index).wrappedValue.formatted(.dateTime.year().month().day()))
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(PlanetTheme.primaryText)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Picker("重复", selection: recurrenceBinding(at: index)) {
+                                        ForEach(SpecificDateRecurrence.allCases) { recurrence in
+                                            Text(recurrence.title).tag(recurrence)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(PlanetTheme.violet)
+                                }
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 56)
+                                .background(PlanetTheme.mutedSurface)
+                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            }
+                        }
+                    }
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
+                .padding(.bottom, 36)
+            }
+            .background(PlanetTheme.background)
+            .navigationTitle("打卡频率")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { showingSpecificDatePicker = false }
+                        .fontWeight(.bold)
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func frequencyOption(
+        _ type: TaskScheduleType,
+        title: String,
+        subtitle: String,
+        symbol: String
+    ) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) {
+                scheduleType = type
+                if type != .specificDates { regularScheduleType = type }
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(scheduleType == type ? Color.white : PlanetTheme.violet)
+                    .frame(width: 38, height: 38)
+                    .background(scheduleType == type ? PlanetTheme.violet : PlanetTheme.softViolet)
+                    .clipShape(Circle())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.text(title))
+                        .font(.system(.body, design: .rounded, weight: .bold))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text(L10n.text(subtitle))
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+                Spacer()
+                Image(systemName: scheduleType == type ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(scheduleType == type ? PlanetTheme.violet : PlanetTheme.separator)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(minHeight: 70)
+            .background(scheduleType == type ? PlanetTheme.softViolet.opacity(0.7) : PlanetTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(
+                        scheduleType == type ? PlanetTheme.lavender.opacity(0.5) : PlanetTheme.separator.opacity(0.28),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var weekdayPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(Weekday.allCases) { weekday in
+                Button {
+                    if selectedWeekdays.contains(weekday) {
+                        selectedWeekdays.remove(weekday)
+                    } else {
+                        selectedWeekdays.insert(weekday)
+                    }
+                } label: {
+                    Text(weekday.shortTitle)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(selectedWeekdays.contains(weekday) ? Color.white : PlanetTheme.secondaryText)
+                        .frame(maxWidth: .infinity, minHeight: 42)
+                        .background(selectedWeekdays.contains(weekday) ? PlanetTheme.lavender : PlanetTheme.mutedSurface)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var scheduleSelectionSummary: String {
+        switch scheduleType {
+        case .daily: return L10n.text("每天")
+        case .weekdays: return L10n.text("工作日")
+        case .custom: return L10n.text("按星期")
+        case .specificDates:
+            return specificDates.isEmpty ? L10n.text("尚未选择日期") : L10n.format("已选择 %d 个日期", specificDates.count)
+        }
+    }
+
+    private func synchronizeCalendarSelection() {
+        selectedCalendarDates = Set(specificDates.compactMap {
+            DayKey(rawValue: $0.dayKey).date().map {
+                Calendar.current.dateComponents([.year, .month, .day], from: $0)
+            }
+        })
+    }
+
+    private func synchronizeSpecificDates() {
+        let calendar = Calendar.current
+        let selected = selectedCalendarDates.compactMap { calendar.date(from: $0) }.sorted()
+        if selected.count > 20 {
+            selectedCalendarDates = Set(selected.prefix(20).map {
+                calendar.dateComponents([.year, .month, .day], from: $0)
+            })
+            return
+        }
+        let existing = Dictionary(uniqueKeysWithValues: specificDates.map { ($0.dayKey, $0) })
+        specificDates = selected.map { date in
+            let key = DayKey(date: date, calendar: calendar).rawValue
+            return existing[key] ?? TaskSpecificDate(date: date, calendar: calendar)
         }
     }
 }

@@ -110,6 +110,93 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
         }
     }
 
+    func removeCheckIns(taskID: UUID, on date: Date) async throws -> DailyProgress {
+        let calendar = calendar
+        return try await store.perform { context in
+            guard let task = try CoreDataTaskRepository.fetchEntity(id: taskID, context: context) else {
+                throw RepositoryError.taskNotFound
+            }
+            let key = DayKey(date: date, calendar: calendar).rawValue
+            let request = CheckInEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "task.id == %@ AND dayKey == %@", taskID as CVarArg, key)
+            let events = try context.fetch(request)
+            guard !events.isEmpty else { throw RepositoryError.noCheckInToUndo }
+            events.forEach(context.delete)
+
+            let latestRequest = CheckInEntity.fetchRequest()
+            latestRequest.predicate = NSPredicate(format: "task.id == %@", taskID as CVarArg)
+            latestRequest.sortDescriptors = [NSSortDescriptor(key: "occurredAt", ascending: false)]
+            latestRequest.fetchLimit = 1
+            task.lastCheckInAt = try context.fetch(latestRequest).first?.occurredAt
+            task.updatedAt = Date()
+            try context.save()
+
+            return DailyProgress(
+                taskID: taskID,
+                date: date,
+                completed: 0,
+                target: TaskScheduleService().dailyTarget(for: task.makeDTO(), on: date, calendar: calendar)
+            )
+        }
+    }
+
+    @discardableResult
+    func processAutomaticCheckIns(through date: Date) async throws -> Int {
+        let calendar = calendar
+        return try await store.perform { context in
+            let request = TaskEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "autoCheckInEnabled == YES")
+            let tasks = try context.fetch(request)
+            let today = calendar.startOfDay(for: date)
+            let todayKey = DayKey(date: today, calendar: calendar).rawValue
+            let scheduleService = TaskScheduleService()
+            var insertedCount = 0
+
+            for task in tasks {
+                if let lastProcessedKey = task.autoCheckInLastProcessedDayKey,
+                   lastProcessedKey >= todayKey {
+                    continue
+                }
+                guard let startKey = task.autoCheckInStartDayKey,
+                      let startDate = DayKey(rawValue: startKey).date(calendar: calendar) else { continue }
+                let taskDTO = task.makeDTO()
+                let lastProcessedDate = task.autoCheckInLastProcessedDayKey
+                    .flatMap { DayKey(rawValue: $0).date(calendar: calendar) }
+                var candidate = max(
+                    startDate,
+                    lastProcessedDate.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) } ?? startDate
+                )
+
+                while candidate <= today {
+                    if scheduleService.isScheduled(taskDTO, on: candidate, calendar: calendar) {
+                        let dayKey = DayKey(date: candidate, calendar: calendar).rawValue
+                        let completed = try Self.total(taskID: task.id, dayKey: dayKey, context: context)
+                        let target = scheduleService.dailyTarget(for: taskDTO, on: candidate, calendar: calendar)
+                        if completed < target {
+                            let event = CheckInEntity(context: context)
+                            event.id = UUID()
+                            event.occurredAt = candidate
+                            event.dayKey = dayKey
+                            event.value = Int16(target - completed)
+                            event.source = CheckInSource.automatic.rawValue
+                            event.createdAt = date
+                            event.task = task
+                            task.lastCheckInAt = max(task.lastCheckInAt ?? candidate, candidate)
+                            insertedCount += 1
+                        }
+                    }
+                    guard let next = calendar.date(byAdding: .day, value: 1, to: candidate) else { break }
+                    candidate = next
+                }
+                task.autoCheckInLastProcessedDayKey = todayKey
+                task.updatedAt = date
+            }
+
+            if context.hasChanges { try context.save() }
+            return insertedCount
+        }
+    }
+
     func progress(taskID: UUID, on date: Date) async throws -> DailyProgress {
         let calendar = calendar
         return try await store.perform { context in
@@ -176,6 +263,32 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             let request = CheckInEntity.fetchRequest()
             request.predicate = NSPredicate(format: "task.id == %@", taskID as CVarArg)
             return try context.count(for: request)
+        }
+    }
+
+    func completedDayKeys(taskIDs: [UUID]) async throws -> [UUID: Set<String>] {
+        guard !taskIDs.isEmpty else { return [:] }
+        let calendar = calendar
+        return try await store.perform { context in
+            let taskRequest = TaskEntity.fetchRequest()
+            taskRequest.predicate = NSPredicate(format: "id IN %@", taskIDs)
+            let tasks = try context.fetch(taskRequest).map { $0.makeDTO() }
+            let tasksByID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+            let eventRequest = CheckInEntity.fetchRequest()
+            eventRequest.predicate = NSPredicate(format: "task.id IN %@", taskIDs)
+            let grouped = Dictionary(grouping: try context.fetch(eventRequest)) { event in
+                "\(event.task?.id.uuidString ?? "").\(event.dayKey)"
+            }
+            var result: [UUID: Set<String>] = [:]
+            for events in grouped.values {
+                guard let first = events.first, let taskID = first.task?.id, let task = tasksByID[taskID],
+                      let date = DayKey(rawValue: first.dayKey).date(calendar: calendar) else { continue }
+                let total = events.reduce(0) { $0 + Int($1.value) }
+                if total >= TaskScheduleService().dailyTarget(for: task, on: date, calendar: calendar) {
+                    result[taskID, default: []].insert(first.dayKey)
+                }
+            }
+            return result
         }
     }
 

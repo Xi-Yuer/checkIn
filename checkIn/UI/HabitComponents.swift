@@ -85,6 +85,75 @@ struct TodayHabitRow: View {
     }
 }
 
+struct UpcomingSpecificDateRow: View {
+    let item: UpcomingSpecificDateItem
+    let isProcessing: Bool
+    let onCheckIn: () -> Void
+    let onUndo: () -> Void
+
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        HStack(spacing: 12) {
+            NavigationLink(value: item.habit.id) {
+                HStack(spacing: 14) {
+                    HabitIconBadge(habit: item.habit, size: 72)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.habit.title)
+                            .font(.system(.body, design: .rounded, weight: .bold))
+                            .foregroundStyle(PlanetTheme.primaryText)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .foregroundStyle(item.progress.isComplete ? PlanetTheme.mint : PlanetTheme.secondaryText)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isProcessing {
+                ProgressView().tint(PlanetTheme.violet).frame(width: 44, height: 44)
+            } else if item.progress.isComplete {
+                Button(action: onUndo) {
+                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(PlanetTheme.mint)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("撤销提前打卡")
+            } else {
+                Button(action: onCheckIn) {
+                    CheckInProgressGauge(
+                        progress: item.progress.fractionComplete,
+                        isComplete: false,
+                        showsLiquidWave: item.progress.target > 1
+                    )
+                    .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("提前打卡")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .frame(minHeight: 88)
+    }
+
+    private var subtitle: String {
+        if item.progress.isComplete { return L10n.text("已提前完成") }
+        let date = item.occurrence.date.formatted(.dateTime.month().day().locale(locale))
+        let countdown = L10n.format("还有 %d 天", item.occurrence.daysRemaining)
+        if item.progress.target > 1 {
+            return "\(date) · \(countdown) · \(item.progress.completed)/\(item.progress.target)"
+        }
+        return "\(date) · \(countdown)"
+    }
+}
+
 private struct CheckInProgressGauge: View {
     let progress: Double
     let isComplete: Bool
@@ -305,7 +374,33 @@ extension TaskSchedule {
         case let .custom(days):
             let ordered = Weekday.allCases.filter(days.contains)
             return ordered.map(\.shortTitle).joined(separator: " · ")
+        case let .specificDates(entries, _):
+            return Self.nearestSpecificDateTitle(entries)
         }
+    }
+
+    private static func nearestSpecificDateTitle(_ entries: [TaskSpecificDate]) -> String {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: Date())
+        let scheduler = TaskScheduleService()
+        let nextDate = entries
+            .compactMap { scheduler.nextOccurrence(for: $0, onOrAfter: today, calendar: calendar) }
+            .min()
+
+        // An expired one-time plan can still appear in history. Keep its actual
+        // date visible there instead of falling back to a generic item count.
+        let fallbackDate = entries
+            .compactMap { DayKey(rawValue: $0.dayKey).date(calendar: calendar) }
+            .max()
+
+        guard let date = nextDate ?? fallbackDate else {
+            return L10n.text("尚未选择日期")
+        }
+
+        if calendar.component(.year, from: date) == calendar.component(.year, from: today) {
+            return date.formatted(.dateTime.month().day())
+        }
+        return date.formatted(.dateTime.year().month().day())
     }
 }
 

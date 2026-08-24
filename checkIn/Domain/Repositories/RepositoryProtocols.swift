@@ -43,10 +43,14 @@ protocol CheckInRepository: Sendable {
     ) async throws -> DailyProgress
 
     func undoLastCheckIn(taskID: UUID, on date: Date) async throws -> DailyProgress
+    func removeCheckIns(taskID: UUID, on date: Date) async throws -> DailyProgress
+    @discardableResult
+    func processAutomaticCheckIns(through date: Date) async throws -> Int
     func progress(taskID: UUID, on date: Date) async throws -> DailyProgress
     func progresses(taskIDs: [UUID], on date: Date) async throws -> [UUID: DailyProgress]
     func history(taskID: UUID, range: DateInterval) async throws -> [CheckInDTO]
     func checkInCount(taskID: UUID) async throws -> Int
+    func completedDayKeys(taskIDs: [UUID]) async throws -> [UUID: Set<String>]
     func streak(taskID: UUID, through date: Date) async throws -> Int
     func streaks(taskIDs: [UUID], through date: Date) async throws -> [UUID: Int]
     func statistics(period: StatisticsPeriod, anchor: Date, now: Date) async throws -> StatisticsSummary

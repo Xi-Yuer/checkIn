@@ -27,7 +27,7 @@ enum NotificationAuthorizationStatus: String, Codable, Sendable {
 protocol NotificationScheduling: Sendable {
     func authorizationStatus() async -> NotificationAuthorizationStatus
     func requestAuthorization() async throws -> Bool
-    func reconcile(tasks: [TaskDTO], now: Date) async throws
+    func reconcile(tasks: [TaskDTO], completedDayKeys: [UUID: Set<String>], now: Date) async throws
     func remove(taskID: UUID) async
 }
 
@@ -53,17 +53,26 @@ final class UserNotificationScheduler: NotificationScheduling, @unchecked Sendab
         try await center.requestAuthorization(options: [.alert, .badge, .sound])
     }
 
-    func reconcile(tasks: [TaskDTO], now: Date) async throws {
+    func reconcile(tasks: [TaskDTO], completedDayKeys: [UUID: Set<String>], now: Date) async throws {
         let pending = await center.pendingNotificationRequests()
         let existingAppIDs = pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: existingAppIDs)
 
         guard await authorizationStatus().canSchedule else { return }
 
-        for task in tasks where shouldSchedule(task, now: now) {
-            for request in NotificationRequestFactory(calendar: calendar).requests(for: task) {
-                try await center.add(request)
-            }
+        let factory = NotificationRequestFactory(calendar: calendar)
+        let eligible = tasks.filter { shouldSchedule($0, now: now) }
+        let recurring = eligible.filter { $0.schedule.type != .specificDates }.flatMap {
+            factory.requests(for: $0, completedDayKeys: completedDayKeys[$0.id] ?? [], now: now)
+        }
+        let dated = eligible.filter { $0.schedule.type == .specificDates }.flatMap {
+            factory.requests(for: $0, completedDayKeys: completedDayKeys[$0.id] ?? [], now: now)
+        }.sorted {
+            ($0.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() ?? .distantFuture <
+            ($1.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() ?? .distantFuture
+        }
+        for request in Array((recurring + dated).prefix(64)) {
+            try await center.add(request)
         }
     }
 
@@ -92,7 +101,11 @@ struct NotificationRequestFactory: Sendable {
 
     let calendar: Calendar
 
-    func requests(for task: TaskDTO) -> [UNNotificationRequest] {
+    func requests(
+        for task: TaskDTO,
+        completedDayKeys: Set<String> = [],
+        now: Date = Date()
+    ) -> [UNNotificationRequest] {
         guard let hour = task.reminderHour, let minute = task.reminderMinute else { return [] }
         let content = UNMutableNotificationContent()
         content.title = L10n.text("今天也来点亮一颗星吧")
@@ -126,6 +139,41 @@ struct NotificationRequestFactory: Sendable {
                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
                 )
             }
+        case let .specificDates(entries, countdownDays):
+            let service = TaskScheduleService()
+            let today = calendar.startOfDay(for: now)
+            return entries.flatMap { entry -> [UNNotificationRequest] in
+                guard let occurrence = service.nextOccurrence(for: entry, onOrAfter: today, calendar: calendar) else {
+                    return []
+                }
+                let key = DayKey(date: occurrence, calendar: calendar).rawValue
+                guard !completedDayKeys.contains(key) else { return [] }
+                let occurrenceID = baseID + ".specific.\(entry.id.uuidString).\(key)"
+                var targetComponents = calendar.dateComponents([.year, .month, .day], from: occurrence)
+                targetComponents.calendar = calendar
+                targetComponents.timeZone = calendar.timeZone
+                targetComponents.hour = hour
+                targetComponents.minute = minute
+                var result = [UNNotificationRequest(
+                    identifier: occurrenceID + ".target",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: targetComponents, repeats: false)
+                )]
+                if let countdownDate = calendar.date(byAdding: .day, value: -countdownDays, to: occurrence),
+                   countdownDate >= today {
+                    var countdownComponents = calendar.dateComponents([.year, .month, .day], from: countdownDate)
+                    countdownComponents.calendar = calendar
+                    countdownComponents.timeZone = calendar.timeZone
+                    countdownComponents.hour = hour
+                    countdownComponents.minute = minute
+                    result.append(UNNotificationRequest(
+                        identifier: occurrenceID + ".countdown",
+                        content: content,
+                        trigger: UNCalendarNotificationTrigger(dateMatching: countdownComponents, repeats: false)
+                    ))
+                }
+                return result
+            }
         }
     }
 }
@@ -133,6 +181,6 @@ struct NotificationRequestFactory: Sendable {
 struct DisabledNotificationScheduler: NotificationScheduling {
     func authorizationStatus() async -> NotificationAuthorizationStatus { .denied }
     func requestAuthorization() async throws -> Bool { false }
-    func reconcile(tasks: [TaskDTO], now: Date) async throws {}
+    func reconcile(tasks: [TaskDTO], completedDayKeys: [UUID: Set<String>], now: Date) async throws {}
     func remove(taskID: UUID) async {}
 }

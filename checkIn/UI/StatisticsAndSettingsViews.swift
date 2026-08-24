@@ -533,7 +533,7 @@ struct SettingsView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color(hex: "#E5D9FF"), Color(hex: "#F4EFFF"), PlanetTheme.background],
+                colors: [PlanetTheme.elevatedSurface, PlanetTheme.mutedSurface, PlanetTheme.background],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -579,7 +579,7 @@ struct SettingsView: View {
                 .foregroundStyle(PlanetTheme.violet)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 11)
-                .background(Color.white.opacity(0.94))
+                .background(PlanetTheme.surface.opacity(0.94))
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -607,7 +607,7 @@ struct SettingsView: View {
             metric(label: "最佳", value: bestStreak, unit: "天")
         }
         .padding(.vertical, 12)
-        .background(Color.white.opacity(0.94))
+        .background(PlanetTheme.surface.opacity(0.94))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -635,7 +635,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
         }
-        .background(Color.white.opacity(0.93))
+        .background(PlanetTheme.surface.opacity(0.93))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: PlanetTheme.violet.opacity(0.09), radius: 14, y: 6)
         .padding(.horizontal, 16)
@@ -646,7 +646,7 @@ struct SettingsView: View {
             AboutCheckInView()
         } label: {
             menuRow(title: "关于", asset: "ProfileInfo")
-                .background(Color.white.opacity(0.93))
+                .background(PlanetTheme.surface.opacity(0.93))
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .shadow(color: PlanetTheme.violet.opacity(0.09), radius: 14, y: 6)
         }
@@ -1349,6 +1349,8 @@ private struct DataPrivacyView: View {
 }
 
 private struct AboutCheckInView: View {
+    @State private var isShowingDonation = false
+
     var body: some View {
         ZStack {
             PlanetAtmosphere()
@@ -1417,6 +1419,33 @@ private struct AboutCheckInView: View {
                         RoundedRectangle(cornerRadius: 26, style: .continuous)
                             .stroke(PlanetTheme.separator.opacity(0.36), lineWidth: 1)
                     }
+
+                    Button {
+                        isShowingDonation = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(L10n.text("支持开发"))
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(PlanetTheme.primaryText)
+                                Text(L10n.text("如果这个小星球对你有帮助"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(PlanetTheme.secondaryText)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(PlanetTheme.secondaryText.opacity(0.7))
+                        }
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 58)
+                        .background(PlanetTheme.surface.opacity(0.82))
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(L10n.text("查看微信和支付宝收款码"))
                 }
                 .frame(maxWidth: 520)
                 .padding(16)
@@ -1425,6 +1454,9 @@ private struct AboutCheckInView: View {
         }
         .navigationTitle("关于")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingDonation) {
+            DonationView()
+        }
     }
 
     private func aboutSection(title: String, body: String) -> some View {
@@ -1443,6 +1475,86 @@ private struct AboutCheckInView: View {
     private var appVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         return version ?? "1.0"
+    }
+}
+
+private struct DonationView: View {
+    private enum PaymentMethod: String, CaseIterable, Identifiable {
+        case weChat
+        case alipay
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .weChat: L10n.text("微信")
+            case .alipay: L10n.text("支付宝")
+            }
+        }
+
+        var imageName: String {
+            switch self {
+            case .weChat: "DonationWeChat"
+            case .alipay: "DonationAlipay"
+            }
+        }
+    }
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var paymentMethod: PaymentMethod = .weChat
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                PlanetAtmosphere()
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        Text(L10n.text("感谢你的支持"))
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .foregroundStyle(PlanetTheme.primaryText)
+
+                        Text(L10n.text("捐赠完全自愿，不会影响任何功能。"))
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundStyle(PlanetTheme.secondaryText)
+                            .multilineTextAlignment(.center)
+
+                        Picker(L10n.text("付款方式"), selection: $paymentMethod) {
+                            ForEach(PaymentMethod.allCases) { method in
+                                Text(method.title).tag(method)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Image(paymentMethod.imageName)
+                            .resizable()
+                            .interpolation(.none)
+                            .scaledToFit()
+                            .frame(maxWidth: 330)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .accessibilityLabel(
+                                L10n.format("%@收款码", paymentMethod.title)
+                            )
+
+                        Text(L10n.format("请使用%@扫码", paymentMethod.title))
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .foregroundStyle(PlanetTheme.secondaryText)
+                    }
+                    .frame(maxWidth: 430)
+                    .padding(20)
+                }
+            }
+            .navigationTitle(L10n.text("支持开发"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.text("完成")) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

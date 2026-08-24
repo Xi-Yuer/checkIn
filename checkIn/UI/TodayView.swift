@@ -7,33 +7,49 @@ struct TodayView: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        ZStack {
-            PlanetAtmosphere()
+        GeometryReader { geometry in
+            ZStack {
+                PlanetAtmosphere()
 
-            ScrollView {
-                VStack(spacing: 18) {
-                    heroSection
-                    todayContent
+                ScrollView {
+                    VStack(spacing: 18) {
+                        heroSection(topInset: geometry.safeAreaInsets.top)
+                        todayContent
+                    }
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 24)
                 }
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 24)
+                .ignoresSafeArea(edges: .top)
+                .refreshable { await store.load() }
             }
-            .refreshable { await store.load() }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var heroSection: some View {
+    private func heroSection(topInset: CGFloat) -> some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let period = HomeBannerPeriod.current(at: context.date)
             ZStack(alignment: .topLeading) {
                 Color.clear
                     .aspectRatio(3 / 2, contentMode: .fit)
+                    .padding(.bottom, 36)
                     .overlay {
                         Image(period.assetName)
                             .resizable()
                             .scaledToFill()
+                            .padding(.top, 36)
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .clear, location: 0.06),
+                                        .init(color: .black, location: 0.22),
+                                        .init(color: .black, location: 1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
                     }
                     .clipped()
                     .accessibilityHidden(true)
@@ -60,7 +76,7 @@ struct TodayView: View {
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
                 .padding(.horizontal, 22)
-                .padding(.top, 12)
+                .padding(.top, topInset + 12)
             }
             .overlay(alignment: .bottom) {
                 progressSummary
@@ -115,7 +131,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var todayContent: some View {
-        if store.todayHabits.isEmpty {
+        if store.todayHabits.isEmpty && store.upcomingSpecificDateItems.isEmpty {
             EmptyStateView(
                 mood: .ready,
                 title: "今天还没有计划",
@@ -136,7 +152,26 @@ struct TodayView: View {
                         onCheckIn: { Task { await store.checkIn(habitID: habit.id) } }
                     )
 
-                    if index < store.todayHabits.count - 1 {
+                    if index < store.todayHabits.count - 1 || !store.upcomingSpecificDateItems.isEmpty {
+                        Divider()
+                            .overlay(PlanetTheme.separator.opacity(0.36))
+                            .padding(.leading, 102)
+                    }
+                }
+
+                ForEach(Array(store.upcomingSpecificDateItems.enumerated()), id: \.element.id) { index, item in
+                    UpcomingSpecificDateRow(
+                        item: item,
+                        isProcessing: store.processingHabitIDs.contains(item.habit.id),
+                        onCheckIn: {
+                            Task { await store.checkIn(habitID: item.habit.id, on: item.occurrence.date) }
+                        },
+                        onUndo: {
+                            Task { await store.removeCheckIns(habitID: item.habit.id, on: item.occurrence.date) }
+                        }
+                    )
+
+                    if index < store.upcomingSpecificDateItems.count - 1 {
                         Divider()
                             .overlay(PlanetTheme.separator.opacity(0.36))
                             .padding(.leading, 102)

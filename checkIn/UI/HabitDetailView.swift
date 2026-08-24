@@ -8,6 +8,8 @@ struct HabitDetailView: View {
     @Environment(\.locale) private var locale
     @State private var showingEditor = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingUndoDayConfirmation = false
+    @State private var selectedHistoryDate: Date?
     @State private var historyCount = 0
 
     private let calendar = Calendar.autoupdatingCurrent
@@ -104,6 +106,21 @@ struct HabitDetailView: View {
         } message: {
             Text("删除后无法恢复；暂停则会保留全部历史。")
         }
+        .confirmationDialog(
+            selectedHistoryDate.map { formattedDate($0) } ?? L10n.text("撤销当天打卡"),
+            isPresented: $showingUndoDayConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("撤销当天全部打卡", role: .destructive) {
+                guard let selectedHistoryDate else { return }
+                Task { _ = await store.removeCheckIns(habitID: habitID, on: selectedHistoryDate) }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            if let selectedHistoryDate {
+                Text(historyDialogMessage(on: selectedHistoryDate))
+            }
+        }
     }
 
     private func hero(_ habit: TaskDTO) -> some View {
@@ -168,6 +185,8 @@ struct HabitDetailView: View {
                 infoDivider
                 infoRow(symbol: "flag.fill", title: "每日目标", value: L10n.format("%d 次", habit.dailyTarget))
                 infoDivider
+                infoRow(symbol: "wand.and.stars", title: "自动打卡", value: automaticCheckInText(habit))
+                infoDivider
                 infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
                 if let startDate = habit.startDate {
                     infoDivider
@@ -180,6 +199,28 @@ struct HabitDetailView: View {
                 if habit.isArchived {
                     infoDivider
                     infoRow(symbol: "pause.fill", title: "状态", value: L10n.text("已暂停"))
+                }
+            }
+
+            if case let .specificDates(entries, countdownDays) = habit.schedule {
+                VStack(spacing: 0) {
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                        HStack(spacing: 10) {
+                            Image(systemName: entry.recurrence == .yearly ? "repeat" : "calendar.badge.clock")
+                                .foregroundStyle(PlanetTheme.violet)
+                                .frame(width: 20)
+                            Text(specificDateText(entry))
+                                .foregroundStyle(PlanetTheme.primaryText)
+                            Spacer()
+                            Text(entry.recurrence.title)
+                                .foregroundStyle(PlanetTheme.secondaryText)
+                        }
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .padding(.vertical, 10)
+                        if index < entries.count - 1 { infoDivider }
+                    }
+                    infoDivider
+                    infoRow(symbol: "clock", title: "提前展示", value: L10n.format("提前 %d 天", countdownDays))
                 }
             }
         }
@@ -297,18 +338,28 @@ struct HabitDetailView: View {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, days in
                     HStack(spacing: gap) {
                         ForEach(days, id: \.self) { date in
-                            HabitHeatmapCell(
-                                date: date,
-                                fraction: completionFraction(on: date, habit: habit),
-                                isScheduled: scheduleService.isScheduled(
-                                    habit,
-                                    on: date,
-                                    calendar: calendar,
-                                    excludingPaused: false
-                                ) && date <= calendar.startOfDay(for: store.today),
-                                isToday: calendar.isDateInToday(date),
-                                size: cellSize
-                            )
+                            let fraction = completionFraction(on: date, habit: habit)
+                            Button {
+                                guard fraction >= 1 else { return }
+                                selectedHistoryDate = date
+                                showingUndoDayConfirmation = true
+                            } label: {
+                                HabitHeatmapCell(
+                                    date: date,
+                                    fraction: fraction,
+                                    isScheduled: scheduleService.isScheduled(
+                                        habit,
+                                        on: date,
+                                        calendar: calendar,
+                                        excludingPaused: false
+                                    ) && date <= calendar.startOfDay(for: store.today),
+                                    isToday: calendar.isDateInToday(date),
+                                    size: cellSize
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(fraction < 1)
+                            .accessibilityHint(fraction >= 1 ? L10n.text("点按可撤销当天打卡") : "")
                         }
                     }
                 }
@@ -363,8 +414,46 @@ struct HabitDetailView: View {
         return String(format: "%02d:%02d", hour, minute)
     }
 
+    private func automaticCheckInText(_ habit: TaskDTO) -> String {
+        guard habit.autoCheckInEnabled else { return L10n.text("未开启") }
+        guard let key = habit.autoCheckInStartDayKey,
+              let date = DayKey(rawValue: key).date(calendar: calendar) else {
+            return L10n.text("已开启")
+        }
+        return L10n.format("已开启（%@起）", formattedDate(date))
+    }
+
+    private func historyDialogMessage(on date: Date) -> String {
+        let key = DayKey(date: date, calendar: calendar).rawValue
+        let events = habitHistory.filter { $0.dayKey == key }
+        let count = events.reduce(0) { $0 + $1.value }
+        let sources = Set(events.map(\.source)).map(sourceTitle).sorted().joined(separator: "、")
+        return L10n.format(
+            "当天共打卡 %d 次，来源：%@。撤销后会影响连续天数和统计。",
+            count,
+            sources
+        )
+    }
+
+    private func sourceTitle(_ source: CheckInSource) -> String {
+        switch source {
+        case .app: L10n.text("应用")
+        case .widget: L10n.text("桌面组件")
+        case .imported: L10n.text("导入")
+        case .automatic: L10n.text("自动打卡")
+        }
+    }
+
     private func formattedDate(_ date: Date) -> String {
         date.formatted(.dateTime.year().month().day().locale(locale))
+    }
+
+    private func specificDateText(_ entry: TaskSpecificDate) -> String {
+        guard let date = DayKey(rawValue: entry.dayKey).date(calendar: calendar) else { return entry.dayKey }
+        if entry.recurrence == .yearly {
+            return date.formatted(.dateTime.month().day().locale(locale))
+        }
+        return formattedDate(date)
     }
 
     private var historyCountValue: Int {

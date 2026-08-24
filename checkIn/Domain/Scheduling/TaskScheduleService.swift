@@ -1,6 +1,14 @@
 import Foundation
 
 struct TaskScheduleService: Sendable {
+    struct SpecificDateOccurrence: Identifiable, Hashable, Sendable {
+        let entryID: UUID
+        let date: Date
+        let dayKey: String
+        let daysRemaining: Int
+        var id: String { "\(entryID.uuidString).\(dayKey)" }
+    }
+
     func plan(
         for task: TaskDTO,
         on date: Date,
@@ -61,9 +69,75 @@ struct TaskScheduleService: Sendable {
         if dayKey < firstDayKey { return false }
         if let endDayKey = revision.endDayKey, dayKey > endDayKey { return false }
 
+        if case let .specificDates(entries, _) = revision.schedule {
+            return entries.contains { entry in
+                if entry.recurrence == .once {
+                    return entry.dayKey == dayKey
+                }
+                return occurrenceDate(for: entry, year: calendar.component(.year, from: day), calendar: calendar)
+                    .map { calendar.isDate($0, inSameDayAs: day) } ?? false
+            }
+        }
+
         let weekdayValue = calendar.component(.weekday, from: day)
         guard let weekday = Weekday(rawValue: Int16(weekdayValue)) else { return false }
         return revision.schedule.includes(weekday)
+    }
+
+    func upcomingOccurrences(
+        for task: TaskDTO,
+        from date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> [SpecificDateOccurrence] {
+        guard !task.isArchived else { return [] }
+        let today = calendar.startOfDay(for: date)
+        let plan = plan(for: task, on: today, calendar: calendar)
+        guard case let .specificDates(entries, countdownDays) = plan.schedule else { return [] }
+        return entries.compactMap { entry in
+            guard let occurrence = nextOccurrence(for: entry, onOrAfter: today, calendar: calendar) else { return nil }
+            let remaining = calendar.dateComponents([.day], from: today, to: occurrence).day ?? Int.max
+            guard (0...countdownDays).contains(remaining) else { return nil }
+            return SpecificDateOccurrence(
+                entryID: entry.id,
+                date: occurrence,
+                dayKey: DayKey(date: occurrence, calendar: calendar).rawValue,
+                daysRemaining: remaining
+            )
+        }
+        .sorted { $0.date == $1.date ? $0.entryID.uuidString < $1.entryID.uuidString : $0.date < $1.date }
+    }
+
+    func nextOccurrence(
+        for entry: TaskSpecificDate,
+        onOrAfter date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> Date? {
+        let day = calendar.startOfDay(for: date)
+        guard let original = DayKey(rawValue: entry.dayKey).date(calendar: calendar) else { return nil }
+        if entry.recurrence == .once {
+            return original >= day ? original : nil
+        }
+        let year = calendar.component(.year, from: day)
+        if let current = occurrenceDate(for: entry, year: year, calendar: calendar), current >= day {
+            return current
+        }
+        return occurrenceDate(for: entry, year: year + 1, calendar: calendar)
+    }
+
+    private func occurrenceDate(for entry: TaskSpecificDate, year: Int, calendar: Calendar) -> Date? {
+        guard let original = DayKey(rawValue: entry.dayKey).date(calendar: calendar) else { return nil }
+        let parts = calendar.dateComponents([.month, .day], from: original)
+        var components = DateComponents(year: year, month: parts.month, day: parts.day)
+        if let exact = calendar.date(from: components),
+           calendar.component(.month, from: exact) == parts.month,
+           calendar.component(.day, from: exact) == parts.day {
+            return calendar.startOfDay(for: exact)
+        }
+        if parts.month == 2, parts.day == 29 {
+            components.day = 28
+            return calendar.date(from: components).map(calendar.startOfDay(for:))
+        }
+        return nil
     }
 
     func nextScheduledDate(

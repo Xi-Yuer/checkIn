@@ -75,18 +75,41 @@ enum TaskScheduleType: Int16, Codable, Sendable {
     case daily
     case weekdays
     case custom
+    case specificDates
+}
+
+enum SpecificDateRecurrence: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+    case once
+    case yearly
+
+    var id: String { rawValue }
+    var title: String { self == .once ? L10n.text("仅一次") : L10n.text("每年") }
+}
+
+struct TaskSpecificDate: Codable, Hashable, Identifiable, Sendable {
+    var id: UUID
+    var dayKey: String
+    var recurrence: SpecificDateRecurrence
+
+    init(id: UUID = UUID(), date: Date, recurrence: SpecificDateRecurrence = .once, calendar: Calendar = .autoupdatingCurrent) {
+        self.id = id
+        dayKey = DayKey(date: date, calendar: calendar).rawValue
+        self.recurrence = recurrence
+    }
 }
 
 enum TaskSchedule: Codable, Hashable, Sendable {
     case daily
     case weekdays
     case custom(Set<Weekday>)
+    case specificDates([TaskSpecificDate], countdownDays: Int)
 
     var type: TaskScheduleType {
         switch self {
         case .daily: .daily
         case .weekdays: .weekdays
         case .custom: .custom
+        case .specificDates: .specificDates
         }
     }
 
@@ -99,6 +122,8 @@ enum TaskSchedule: Codable, Hashable, Sendable {
                 .reduce(0) { $0 | $1.bit }
         case let .custom(days):
             days.reduce(0) { $0 | $1.bit }
+        case .specificDates:
+            0
         }
     }
 
@@ -110,10 +135,12 @@ enum TaskSchedule: Codable, Hashable, Sendable {
             Set([.monday, .tuesday, .wednesday, .thursday, .friday])
         case let .custom(days):
             days
+        case .specificDates:
+            []
         }
     }
 
-    init(type: TaskScheduleType, weekdaysMask: Int16) {
+    init(type: TaskScheduleType, weekdaysMask: Int16, specificDates: [TaskSpecificDate] = [], countdownDays: Int = 7) {
         switch type {
         case .daily:
             self = .daily
@@ -121,11 +148,23 @@ enum TaskSchedule: Codable, Hashable, Sendable {
             self = .weekdays
         case .custom:
             self = .custom(Set(Weekday.allCases.filter { weekdaysMask & $0.bit != 0 }))
+        case .specificDates:
+            self = .specificDates(specificDates, countdownDays: max(1, min(30, countdownDays)))
         }
     }
 
     func includes(_ weekday: Weekday) -> Bool {
         selectedWeekdays.contains(weekday)
+    }
+
+    var specificDateEntries: [TaskSpecificDate] {
+        guard case let .specificDates(entries, _) = self else { return [] }
+        return entries
+    }
+
+    var countdownDays: Int {
+        guard case let .specificDates(_, days) = self else { return 7 }
+        return max(1, min(30, days))
     }
 }
 
@@ -187,10 +226,11 @@ enum TaskSort: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-enum CheckInSource: Int16, Codable, Sendable {
+enum CheckInSource: Int16, Codable, Hashable, Sendable {
     case app
     case widget
     case imported
+    case automatic
 }
 
 struct TaskDraft: Equatable, Sendable {
@@ -202,6 +242,7 @@ struct TaskDraft: Equatable, Sendable {
     var priority: TaskPriority = .normal
     var schedule: TaskSchedule = .daily
     var dailyTarget: Int = 1
+    var autoCheckInEnabled: Bool = false
     var reminderEnabled: Bool = false
     var reminderHour: Int? = nil
     var reminderMinute: Int? = nil
@@ -217,6 +258,7 @@ struct TaskDraft: Equatable, Sendable {
         priority: TaskPriority = .normal,
         schedule: TaskSchedule = .daily,
         dailyTarget: Int = 1,
+        autoCheckInEnabled: Bool = false,
         reminderEnabled: Bool = false,
         reminderHour: Int? = nil,
         reminderMinute: Int? = nil,
@@ -231,6 +273,7 @@ struct TaskDraft: Equatable, Sendable {
         self.priority = priority
         self.schedule = schedule
         self.dailyTarget = dailyTarget
+        self.autoCheckInEnabled = autoCheckInEnabled
         self.reminderEnabled = reminderEnabled
         self.reminderHour = reminderHour
         self.reminderMinute = reminderMinute
@@ -252,6 +295,17 @@ struct TaskDraft: Equatable, Sendable {
 
         if case let .custom(days) = copy.schedule, days.isEmpty {
             throw TaskValidationError.emptyCustomSchedule
+        }
+        if case let .specificDates(entries, countdownDays) = copy.schedule {
+            guard !entries.isEmpty else { throw TaskValidationError.emptySpecificDates }
+            guard entries.count <= 20 else { throw TaskValidationError.tooManySpecificDates }
+            guard (1...30).contains(countdownDays) else { throw TaskValidationError.invalidSpecificDateCountdown }
+            let keys = entries.map { entry in
+                entry.recurrence == .once
+                    ? "once:\(entry.dayKey)"
+                    : "yearly:\(entry.dayKey.dropFirst(5))"
+            }
+            guard Set(keys).count == keys.count else { throw TaskValidationError.duplicateSpecificDates }
         }
 
         if let startDate = copy.startDate, let endDate = copy.endDate,
@@ -286,6 +340,10 @@ enum TaskValidationError: LocalizedError, Equatable {
     case emptyCustomSchedule
     case endBeforeStart
     case invalidReminderTime
+    case emptySpecificDates
+    case tooManySpecificDates
+    case duplicateSpecificDates
+    case invalidSpecificDateCountdown
 
     var errorDescription: String? {
         switch self {
@@ -298,6 +356,10 @@ enum TaskValidationError: LocalizedError, Equatable {
         case .emptyCustomSchedule: L10n.text("自定义频率至少选择一天")
         case .endBeforeStart: L10n.text("结束日期不能早于开始日期")
         case .invalidReminderTime: L10n.text("请选择有效提醒时间")
+        case .emptySpecificDates: L10n.text("请至少添加一个指定日期")
+        case .tooManySpecificDates: L10n.text("每个计划最多添加 20 个指定日期")
+        case .duplicateSpecificDates: L10n.text("指定日期不能重复")
+        case .invalidSpecificDateCountdown: L10n.text("提前展示天数需在 1 到 30 天之间")
         }
     }
 }
@@ -321,6 +383,9 @@ struct TaskDTO: Identifiable, Codable, Hashable, Sendable {
     var sortOrder: Int
     var schedule: TaskSchedule
     var dailyTarget: Int
+    var autoCheckInEnabled: Bool
+    var autoCheckInStartDayKey: String?
+    var autoCheckInLastProcessedDayKey: String?
     var reminderEnabled: Bool
     var reminderHour: Int?
     var reminderMinute: Int?
@@ -344,6 +409,7 @@ struct TaskDTO: Identifiable, Codable, Hashable, Sendable {
             priority: priority,
             schedule: schedule,
             dailyTarget: dailyTarget,
+            autoCheckInEnabled: autoCheckInEnabled,
             reminderEnabled: reminderEnabled,
             reminderHour: reminderHour,
             reminderMinute: reminderMinute,

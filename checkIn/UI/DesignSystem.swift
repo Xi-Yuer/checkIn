@@ -44,7 +44,10 @@ enum L10n {
 enum PlanetTheme {
     static let violet = Color(hex: "#7C3AED")
     static let lavender = Color(hex: "#A788FA")
-    static let softViolet = Color(hex: "#EEE7FF")
+    static let softViolet = Color.dynamic(
+        light: UIColor(red: 0.933, green: 0.906, blue: 1, alpha: 1),
+        dark: UIColor(red: 0.176, green: 0.133, blue: 0.310, alpha: 1)
+    )
     static let gold = Color(hex: "#FDBA74")
     static let yellow = Color(hex: "#FDE68A")
     static let mint = Color(hex: "#34D399")

@@ -16,6 +16,7 @@ public enum WidgetFrequencyKind: String, Codable, CaseIterable, Sendable {
     case daily
     case weekdays
     case custom
+    case specificDates
 }
 
 public struct WidgetSchedule: Codable, Equatable, Sendable {
@@ -23,17 +24,33 @@ public struct WidgetSchedule: Codable, Equatable, Sendable {
     public var weekdays: [Int]
     public var startDayKey: String?
     public var endDayKey: String?
+    public var specificDayKeys: [String]
 
     public init(
         kind: WidgetFrequencyKind,
         weekdays: [Int] = [],
         startDayKey: String? = nil,
-        endDayKey: String? = nil
+        endDayKey: String? = nil,
+        specificDayKeys: [String] = []
     ) {
         self.kind = kind
         self.weekdays = Array(Set(weekdays.filter { 1...7 ~= $0 })).sorted()
         self.startDayKey = startDayKey
         self.endDayKey = endDayKey
+        self.specificDayKeys = Array(Set(specificDayKeys)).sorted()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, weekdays, startDayKey, endDayKey, specificDayKeys
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try container.decode(WidgetFrequencyKind.self, forKey: .kind)
+        weekdays = try container.decodeIfPresent([Int].self, forKey: .weekdays) ?? []
+        startDayKey = try container.decodeIfPresent(String.self, forKey: .startDayKey)
+        endDayKey = try container.decodeIfPresent(String.self, forKey: .endDayKey)
+        specificDayKeys = try container.decodeIfPresent([String].self, forKey: .specificDayKeys) ?? []
     }
 
     public func isScheduled(on date: Date, calendar: Calendar = .autoupdatingCurrent) -> Bool {
@@ -49,6 +66,8 @@ public struct WidgetSchedule: Codable, Equatable, Sendable {
             return (2...6).contains(weekday)
         case .custom:
             return weekdays.contains(weekday)
+        case .specificDates:
+            return specificDayKeys.contains(dayKey)
         }
     }
 }

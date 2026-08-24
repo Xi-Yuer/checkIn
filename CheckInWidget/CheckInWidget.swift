@@ -622,20 +622,22 @@ private struct WidgetCompactTaskRow: View {
     var body: some View {
         let count = task.count(on: date, snapshotDayKey: snapshot.dayKey)
         let done = count >= task.dailyGoal
-        HStack(spacing: 8) {
+        HStack(spacing: 11) {
             HabitArtwork(iconKey: task.symbolName)
-                .frame(width: 26, height: 26)
+                .frame(width: 36, height: 36)
             Text(task.title)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.82)
             Spacer(minLength: 6)
             Text("\(count)/\(task.dailyGoal)")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(done ? CheckInWidgetPalette.mint : .secondary)
                 .monospacedDigit()
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 5)
+        .frame(minHeight: 46)
         .contentShape(Rectangle())
     }
 }
@@ -649,7 +651,7 @@ private struct LargeCheckInWidget: View {
         let progress = snapshot.progress(on: date)
         let finished = tasks.filter { $0.count(on: date, snapshotDayKey: snapshot.dayKey) >= $0.dailyGoal }.count
 
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(WidgetChineseDate.line(date))
@@ -676,18 +678,24 @@ private struct LargeCheckInWidget: View {
             if tasks.isEmpty {
                 Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(spacing: 2) {
-                    ForEach(Array(tasks.prefix(5))) { task in
+                let visibleTasks = Array(tasks.prefix(5))
+                VStack(spacing: 0) {
+                    ForEach(Array(visibleTasks.enumerated()), id: \.element.id) { index, task in
                         Link(destination: CheckInDeepLink.task(task.id).url) {
                             WidgetCompactTaskRow(task: task, snapshot: snapshot, date: date)
                         }
                         .buttonStyle(.plain)
+
+                        if index < visibleTasks.count - 1 {
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
     }
+
 }
 
 @available(iOSApplicationExtension 17.0, *)

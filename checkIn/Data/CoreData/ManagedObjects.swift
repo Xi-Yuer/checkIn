@@ -13,7 +13,12 @@ final class TaskEntity: NSManagedObject {
     @NSManaged var sortOrder: Int32
     @NSManaged var scheduleType: Int16
     @NSManaged var weekdaysMask: Int16
+    @NSManaged var specificDatesData: Data?
+    @NSManaged var countdownDays: Int16
     @NSManaged var dailyTarget: Int16
+    @NSManaged var autoCheckInEnabled: Bool
+    @NSManaged var autoCheckInStartDayKey: String?
+    @NSManaged var autoCheckInLastProcessedDayKey: String?
     @NSManaged var reminderEnabled: Bool
     @NSManaged var reminderHour: NSNumber?
     @NSManaged var reminderMinute: NSNumber?
@@ -46,9 +51,14 @@ extension TaskEntity {
             sortOrder: Int(sortOrder),
             schedule: TaskSchedule(
                 type: TaskScheduleType(rawValue: scheduleType) ?? .daily,
-                weekdaysMask: weekdaysMask
+                weekdaysMask: weekdaysMask,
+                specificDates: decoded([TaskSpecificDate].self, from: specificDatesData) ?? [],
+                countdownDays: max(1, Int(countdownDays))
             ),
             dailyTarget: max(1, Int(dailyTarget)),
+            autoCheckInEnabled: autoCheckInEnabled,
+            autoCheckInStartDayKey: autoCheckInStartDayKey,
+            autoCheckInLastProcessedDayKey: autoCheckInLastProcessedDayKey,
             reminderEnabled: reminderEnabled,
             reminderHour: reminderHour?.intValue,
             reminderMinute: reminderMinute?.intValue,
@@ -71,6 +81,7 @@ extension TaskEntity {
         isNew: Bool = false
     ) {
         let effectiveDayKey = DayKey(date: now, calendar: calendar).rawValue
+        let wasAutoCheckInEnabled = autoCheckInEnabled
         var revisions = decoded([TaskPlanRevision].self, from: planRevisionsData) ?? []
         if revisions.isEmpty, !isNew {
             revisions.append(
@@ -78,7 +89,9 @@ extension TaskEntity {
                     effectiveDayKey: createdDayKey ?? DayKey(date: createdAt, calendar: calendar).rawValue,
                     schedule: TaskSchedule(
                         type: TaskScheduleType(rawValue: scheduleType) ?? .daily,
-                        weekdaysMask: weekdaysMask
+                        weekdaysMask: weekdaysMask,
+                        specificDates: decoded([TaskSpecificDate].self, from: specificDatesData) ?? [],
+                        countdownDays: max(1, Int(countdownDays))
                     ),
                     dailyTarget: max(1, Int(dailyTarget)),
                     startDayKey: startDate.map { DayKey(date: $0, calendar: calendar).rawValue },
@@ -95,7 +108,18 @@ extension TaskEntity {
         priority = draft.priority.rawValue
         scheduleType = draft.schedule.type.rawValue
         weekdaysMask = draft.schedule.weekdaysMask
+        specificDatesData = encoded(draft.schedule.specificDateEntries)
+        countdownDays = Int16(draft.schedule.countdownDays)
         dailyTarget = Int16(draft.dailyTarget)
+        autoCheckInEnabled = draft.autoCheckInEnabled
+        if draft.autoCheckInEnabled && !wasAutoCheckInEnabled {
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+            autoCheckInStartDayKey = DayKey(date: tomorrow, calendar: calendar).rawValue
+            autoCheckInLastProcessedDayKey = effectiveDayKey
+        } else if !draft.autoCheckInEnabled {
+            autoCheckInStartDayKey = nil
+            autoCheckInLastProcessedDayKey = nil
+        }
         reminderEnabled = draft.reminderEnabled
         reminderHour = draft.reminderHour.map(NSNumber.init(value:))
         reminderMinute = draft.reminderMinute.map(NSNumber.init(value:))

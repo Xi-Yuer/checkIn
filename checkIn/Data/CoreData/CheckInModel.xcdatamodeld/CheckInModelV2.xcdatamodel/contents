@@ -15,11 +15,15 @@
         </uniquenessConstraints>
     </entity>
     <entity name="TaskEntity" representedClassName="TaskEntity" syncable="NO">
+        <attribute name="autoCheckInEnabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="autoCheckInLastProcessedDayKey" optional="YES" attributeType="String" indexed="YES"/>
+        <attribute name="autoCheckInStartDayKey" optional="YES" attributeType="String" indexed="YES"/>
         <attribute name="category" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="colorHex" attributeType="String" defaultValueString="#A788FA"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="createdDayKey" optional="YES" attributeType="String" indexed="YES"/>
         <attribute name="dailyTarget" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="countdownDays" attributeType="Integer 16" defaultValueString="7" usesScalarValueType="YES"/>
         <attribute name="endDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="iconKey" attributeType="String" defaultValueString="star.fill"/>
         <attribute name="id" attributeType="UUID" indexed="YES" usesScalarValueType="NO"/>
@@ -33,6 +37,7 @@
         <attribute name="reminderHour" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
         <attribute name="reminderMinute" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
         <attribute name="scheduleType" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="specificDatesData" optional="YES" attributeType="Binary"/>
         <attribute name="sortOrder" attributeType="Integer 32" defaultValueString="0" indexed="YES" usesScalarValueType="YES"/>
         <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" indexed="YES"/>

@@ -14,12 +14,20 @@ struct AppStoreError: Identifiable, Equatable, Sendable {
     }
 }
 
+struct UpcomingSpecificDateItem: Identifiable, Sendable {
+    let habit: TaskDTO
+    let occurrence: TaskScheduleService.SpecificDateOccurrence
+    let progress: DailyProgress
+    var id: String { "\(habit.id.uuidString).\(occurrence.id)" }
+}
+
 @MainActor
 final class AppStore: ObservableObject {
     @Published private(set) var habits: [TaskDTO] = []
     @Published private(set) var todayProgress: [UUID: DailyProgress] = [:]
     @Published private(set) var habitStreaks: [UUID: Int] = [:]
     @Published private(set) var checkIns: [CheckInDTO] = []
+    @Published private(set) var upcomingSpecificDateItems: [UpcomingSpecificDateItem] = []
     @Published private(set) var statistics: StatisticsSummary
     @Published private(set) var notificationStatus: NotificationAuthorizationStatus = .notDetermined
     @Published private(set) var isLoading = false
@@ -142,9 +150,10 @@ final class AppStore: ObservableObject {
         defer { isLoading = false }
         do {
             await importPendingWidgetCheckIns()
+            _ = try await checkInRepository.processAutomaticCheckIns(through: today)
             try await reloadCoreState()
             notificationStatus = await notificationScheduler.authorizationStatus()
-            try await notificationScheduler.reconcile(tasks: habits, now: today)
+            try await reconcileNotifications()
             await rebuildSnapshotIgnoringFailure()
         } catch {
             present(error)
@@ -167,7 +176,7 @@ final class AppStore: ObservableObject {
                 try await requestNotificationPermissionIfNeeded()
             }
             try await reloadCoreState()
-            try await notificationScheduler.reconcile(tasks: habits, now: today)
+            try await reconcileNotifications()
             await rebuildSnapshotIgnoringFailure()
             return taskID
         } catch {
@@ -187,22 +196,31 @@ final class AppStore: ObservableObject {
 
     @discardableResult
     func checkIn(habitID: UUID) async -> DailyProgress? {
+        await checkIn(habitID: habitID, on: today)
+    }
+
+    @discardableResult
+    func checkIn(habitID: UUID, on date: Date) async -> DailyProgress? {
         guard !processingHabitIDs.contains(habitID) else { return nil }
         processingHabitIDs.insert(habitID)
         defer { processingHabitIDs.remove(habitID) }
         do {
             let progress = try await checkInRepository.checkIn(
                 taskID: habitID,
-                at: today,
+                at: date,
                 value: 1,
                 source: .app
             )
-            todayProgress[habitID] = progress
-            if progress.isComplete {
+            if calendar.isDate(date, inSameDayAs: today) {
+                todayProgress[habitID] = progress
+            }
+            if progress.isComplete && calendar.isDate(date, inSameDayAs: today) {
                 celebrationHabit = habits.first { $0.id == habitID }
             }
             await refreshStreak(for: habitID)
             try await reloadDerivedState()
+            await reloadUpcomingSpecificDates()
+            try await reconcileNotifications()
             await rebuildSnapshotIgnoringFailure()
             return progress
         } catch RepositoryError.targetAlreadyReached {
@@ -232,6 +250,31 @@ final class AppStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    func removeCheckIns(habitID: UUID, on date: Date) async -> DailyProgress? {
+        guard !processingHabitIDs.contains(habitID) else { return nil }
+        processingHabitIDs.insert(habitID)
+        defer { processingHabitIDs.remove(habitID) }
+        do {
+            let progress = try await checkInRepository.removeCheckIns(taskID: habitID, on: date)
+            let dayKey = DayKey(date: date, calendar: calendar).rawValue
+            checkIns.removeAll { $0.taskID == habitID && $0.dayKey == dayKey }
+            if calendar.isDate(date, inSameDayAs: today) {
+                todayProgress[habitID] = progress
+            }
+            celebrationHabit = nil
+            await refreshStreak(for: habitID)
+            try await reloadDerivedState()
+            await reloadUpcomingSpecificDates()
+            try await reconcileNotifications()
+            await rebuildSnapshotIgnoringFailure()
+            return progress
+        } catch {
+            present(error)
+            return nil
+        }
+    }
+
     func pauseHabit(id: UUID) async {
         do {
             try await tasks.archive(id: id)
@@ -247,7 +290,7 @@ final class AppStore: ObservableObject {
         do {
             try await tasks.unarchive(id: id)
             try await reloadCoreState()
-            try await notificationScheduler.reconcile(tasks: habits, now: today)
+            try await reconcileNotifications()
             await rebuildSnapshotIgnoringFailure()
         } catch {
             present(error)
@@ -317,7 +360,7 @@ final class AppStore: ObservableObject {
     func refreshNotifications() async {
         do {
             notificationStatus = await notificationScheduler.authorizationStatus()
-            try await notificationScheduler.reconcile(tasks: habits, now: today)
+            try await reconcileNotifications()
         } catch {
             present(error)
         }
@@ -378,6 +421,24 @@ final class AppStore: ObservableObject {
         todayProgress = try await checkInRepository.progresses(taskIDs: habits.map(\.id), on: today)
         await reloadHabitStreaks()
         try await reloadDerivedState()
+        await reloadUpcomingSpecificDates()
+    }
+
+    private func reloadUpcomingSpecificDates() async {
+        var items: [UpcomingSpecificDateItem] = []
+        for habit in habits where !habit.isArchived {
+            for occurrence in scheduleService.upcomingOccurrences(for: habit, from: today, calendar: calendar)
+                where occurrence.daysRemaining > 0 {
+                guard let progress = try? await checkInRepository.progress(taskID: habit.id, on: occurrence.date) else {
+                    continue
+                }
+                items.append(UpcomingSpecificDateItem(habit: habit, occurrence: occurrence, progress: progress))
+            }
+        }
+        upcomingSpecificDateItems = items.sorted {
+            if $0.occurrence.date != $1.occurrence.date { return $0.occurrence.date < $1.occurrence.date }
+            return $0.habit.sortOrder < $1.habit.sortOrder
+        }
     }
 
     private func reloadHabitStreaks() async {
@@ -405,6 +466,11 @@ final class AppStore: ObservableObject {
             _ = try await notificationScheduler.requestAuthorization()
         }
         notificationStatus = await notificationScheduler.authorizationStatus()
+    }
+
+    private func reconcileNotifications() async throws {
+        let completed = try await checkInRepository.completedDayKeys(taskIDs: habits.map(\.id))
+        try await notificationScheduler.reconcile(tasks: habits, completedDayKeys: completed, now: today)
     }
 
     private func rebuildSnapshotIgnoringFailure() async {
