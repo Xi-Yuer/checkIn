@@ -1,6 +1,6 @@
 <div align="center">
 
-| 主界面 | 任务列表 | 任务详情 | 统计数据 | 提醒设置 |
+| 小组件 | 今日打卡 | 打卡列表 | 个人中心 | 数据统计 |
 |:---:|:---:|:---:|:---:|:---:|
 | ![主界面](https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead) | ![任务列表](https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191) | ![任务详情](https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d) | ![统计数据](https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36) | ![提醒设置](https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9) |
 
