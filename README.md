@@ -1,17 +1,19 @@
+<div align="center">
 
-<img width="332" height="722" alt="image" src="https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead" />
+<table>
+  <tr>
+    <td width="33%"><img alt="主界面" src="https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead" width="100%"/></td>
+    <td width="33%"><img alt="任务列表" src="https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191" width="100%"/></td>
+    <td width="33%"><img alt="任务详情" src="https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d" width="100%"/></td>
+  </tr>
+  <tr>
+    <td width="33%"><img alt="统计数据" src="https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36" width="100%"/></td>
+    <td width="33%"><img alt="提醒设置" src="https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9" width="100%"/></td>
+    <td width="33%"></td>
+  </tr>
+</table>
 
-<img width="344" height="726" alt="image" src="https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191" />
-
-<img width="344" height="730" alt="image" src="https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d" />
-
-<img width="344" height="730" alt="image" src="https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36" />
-
-<img width="344" height="725" alt="image" src="https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9" />
-
-
-
-
+</div>
 
 # 打卡小星球
 
@@ -62,4 +64,3 @@ xcodebuild -project checkIn.xcodeproj \
 ## 插画资产
 
 项目支持用透明 PNG 替换原生 `MascotView`。生成资产时只从本机环境变量读取 `OPENAI_API_KEY`，不要将密钥写入源码、脚本、配置文件或聊天记录。
-
