@@ -41,6 +41,7 @@ final class AppStore: ObservableObject {
     @Published var statisticsPeriod: StatisticsPeriod = .week
     @Published var statisticsAnchor: Date
     @Published private(set) var settings: AppSettings
+    @Published private(set) var reviewRequestID: UUID?
 
     private let tasks: any TaskRepository
     private let checkInRepository: any CheckInRepository
@@ -49,6 +50,8 @@ final class AppStore: ObservableObject {
     private let widgetPendingCheckIns: AppGroupWidgetPendingCheckInStore
     private let settingsStore: any SettingsStoring
     private let dateProvider: any DateProvider
+    private let reviewPromptPolicy: any ReviewPromptPolicy
+    private let appVersionProvider: @Sendable () -> String?
     private let calendar: Calendar
     private let deepLinkRouter = DeepLinkRouter()
     private let scheduleService = TaskScheduleService()
@@ -124,7 +127,11 @@ final class AppStore: ObservableObject {
         widgetPendingCheckIns: AppGroupWidgetPendingCheckInStore = AppGroupWidgetPendingCheckInStore(),
         settingsStore: any SettingsStoring = InMemorySettingsStore(),
         dateProvider: any DateProvider = SystemDateProvider(),
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        reviewPromptPolicy: any ReviewPromptPolicy = UserDefaultsReviewPromptPolicy(),
+        appVersionProvider: @escaping @Sendable () -> String? = {
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        }
     ) {
         self.tasks = tasks
         checkInRepository = checkIns
@@ -134,6 +141,8 @@ final class AppStore: ObservableObject {
         self.settingsStore = settingsStore
         self.dateProvider = dateProvider
         self.calendar = calendar
+        self.reviewPromptPolicy = reviewPromptPolicy
+        self.appVersionProvider = appVersionProvider
 
         let loadedSettings = settingsStore.load()
         L10n.setLanguage(loadedSettings.appLanguage)
@@ -172,7 +181,7 @@ final class AppStore: ObservableObject {
                 taskID = try await tasks.create(validated)
             }
 
-            if validated.reminderEnabled {
+            if validated.reminderEnabled && settings.areNotificationsEnabled {
                 try await requestNotificationPermissionIfNeeded()
             }
             try await reloadCoreState()
@@ -216,6 +225,14 @@ final class AppStore: ObservableObject {
             }
             if progress.isComplete && calendar.isDate(date, inSameDayAs: today) {
                 celebrationHabit = habits.first { $0.id == habitID }
+            }
+            if reviewPromptPolicy.recordSuccessfulManualCheckIn(
+                completedDailyGoal: progress.isComplete,
+                habitCreatedDates: habits.map(\.createdAt),
+                now: today,
+                appVersion: appVersionProvider()
+            ) {
+                reviewRequestID = UUID()
             }
             await refreshStreak(for: habitID)
             try await reloadDerivedState()
@@ -380,6 +397,24 @@ final class AppStore: ObservableObject {
         persistSettings()
     }
 
+    func setNotificationsEnabled(_ enabled: Bool) async {
+        settings.notificationsEnabled = enabled
+        persistSettings()
+
+        do {
+            if enabled {
+                if habits.contains(where: \.reminderEnabled) {
+                    try await requestNotificationPermissionIfNeeded()
+                }
+                try await reconcileNotifications()
+            } else {
+                await notificationScheduler.removeAll()
+            }
+        } catch {
+            present(error)
+        }
+    }
+
     func setLanguage(_ language: AppLanguage) {
         L10n.setLanguage(language)
         settings.language = language
@@ -406,6 +441,10 @@ final class AppStore: ObservableObject {
 
     func dismissCelebration() {
         celebrationHabit = nil
+    }
+
+    func consumeReviewRequest() {
+        reviewRequestID = nil
     }
 
     func clearError() {
@@ -469,6 +508,10 @@ final class AppStore: ObservableObject {
     }
 
     private func reconcileNotifications() async throws {
+        guard settings.areNotificationsEnabled else {
+            await notificationScheduler.removeAll()
+            return
+        }
         let completed = try await checkInRepository.completedDayKeys(taskIDs: habits.map(\.id))
         try await notificationScheduler.reconcile(tasks: habits, completedDayKeys: completed, now: today)
     }

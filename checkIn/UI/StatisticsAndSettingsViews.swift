@@ -1,4 +1,5 @@
 import Charts
+import StoreKit
 import SwiftUI
 import UIKit
 
@@ -1036,6 +1037,22 @@ private struct GeneralSettingsView: View {
                     }
                     .tint(PlanetTheme.violet)
                     .frame(minHeight: 62)
+
+                    Divider().overlay(PlanetTheme.separator.opacity(0.6))
+
+                    Toggle(isOn: notificationsBinding) {
+                        Label {
+                            Text("打卡提醒")
+                                .font(.system(.body, design: .rounded, weight: .bold))
+                                .foregroundStyle(PlanetTheme.primaryText)
+                        } icon: {
+                            Image(systemName: store.settings.areNotificationsEnabled ? "bell.fill" : "bell.slash.fill")
+                                .foregroundStyle(PlanetTheme.violet)
+                                .frame(width: 28)
+                        }
+                    }
+                    .tint(PlanetTheme.violet)
+                    .frame(minHeight: 62)
                 }
                 .qCard(padding: 16)
                 .padding(16)
@@ -1051,6 +1068,15 @@ private struct GeneralSettingsView: View {
 
     private var hapticsBinding: Binding<Bool> {
         Binding(get: { store.settings.hapticsEnabled }, set: store.setHapticsEnabled)
+    }
+
+    private var notificationsBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.areNotificationsEnabled },
+            set: { enabled in
+                Task { await store.setNotificationsEnabled(enabled) }
+            }
+        )
     }
 
     private func settingsLabel(_ title: String, caption: String, symbol: String) -> some View {
@@ -1349,6 +1375,7 @@ private struct DataPrivacyView: View {
 }
 
 private struct AboutCheckInView: View {
+    @Environment(\.requestReview) private var requestReview
     @State private var isShowingDonation = false
 
     var body: some View {
@@ -1356,98 +1383,11 @@ private struct AboutCheckInView: View {
             PlanetAtmosphere()
             ScrollView {
                 VStack(spacing: 16) {
-                    HStack(spacing: 16) {
-                        MascotView(mood: .ready, size: 96)
-
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("打卡小星球")
-                                .font(.system(.title2, design: .rounded, weight: .heavy))
-                                .foregroundStyle(PlanetTheme.primaryText)
-                            Text("养成好习惯，每天进步一点点")
-                                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                                .foregroundStyle(PlanetTheme.secondaryText)
-                            Text("版本 \(appVersion)")
-                                .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                .foregroundStyle(PlanetTheme.violet)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 4)
-                                .background(PlanetTheme.softViolet)
-                                .clipShape(Capsule())
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                    .padding(18)
-                    .background(PlanetTheme.surface.opacity(0.96))
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 22) {
-                        Text("写给每一位认真生活的人")
-                            .font(.system(.title3, design: .rounded, weight: .heavy))
-                            .foregroundStyle(PlanetTheme.primaryText)
-
-                        aboutSection(
-                            title: "为什么做这个 App",
-                            body: "做打卡小星球的起点很简单：习惯养成不应该是一件有压力的事。我用过许多越来越复杂的工具，也常常因为繁琐的设置忘记最初想做的那件小事。所以我想做一个安静、轻巧的地方，让你只需要记住今天要做什么，然后认真完成它。"
-                        )
-
-                        aboutSection(
-                            title: "免费，是我的选择",
-                            body: "打卡小星球可以免费使用。我希望记录生活、培养习惯这件事，不会因为付费墙而变得遥远。你可以安心创建计划、记录打卡、查看自己的进步，不需要为了基础功能订阅。"
-                        )
-
-                        aboutSection(
-                            title: "你的数据，只属于你",
-                            body: "你的习惯、打卡记录和设置都保存在这台设备上。App 不要求注册账号，不会把这些内容上传到任何服务器，也不会用于广告追踪或数据分析。如果你开启了系统设备备份，数据可能会随系统备份保存，是否备份由你的系统设置决定。"
-                        )
-
-                        aboutSection(
-                            title: "关于隐私",
-                            body: "我相信，最好的隐私保护不是写一份很长的承诺，而是尽量少收集数据。当前版本不提供账号、云同步或跨设备共享，也不嵌入广告追踪。你的每一次打卡，都是你和自己之间的小约定。"
-                        )
-
-                        Text("谢谢你让这颗小星球，成为生活里的一部分。")
-                            .font(.system(.subheadline, design: .rounded, weight: .bold))
-                            .foregroundStyle(PlanetTheme.violet)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 2)
-                    }
-                    .padding(22)
-                    .background(PlanetTheme.surface.opacity(0.97))
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 26, style: .continuous)
-                            .stroke(PlanetTheme.separator.opacity(0.36), lineWidth: 1)
-                    }
-
-                    Button {
-                        isShowingDonation = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(L10n.text("支持开发"))
-                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                                    .foregroundStyle(PlanetTheme.primaryText)
-                                Text(L10n.text("如果这个小星球对你有帮助"))
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(PlanetTheme.secondaryText)
-                            }
-
-                            Spacer(minLength: 0)
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(PlanetTheme.secondaryText.opacity(0.7))
-                        }
-                        .padding(.horizontal, 18)
-                        .frame(minHeight: 58)
-                        .background(PlanetTheme.surface.opacity(0.82))
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint(L10n.text("查看微信和支付宝收款码"))
+                    compactHeader
+                    articleCard
+                    actionCard
                 }
-                .frame(maxWidth: 520)
+                .frame(maxWidth: 560)
                 .padding(16)
                 .padding(.bottom, 24)
             }
@@ -1459,17 +1399,148 @@ private struct AboutCheckInView: View {
         }
     }
 
-    private func aboutSection(title: String, body: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var compactHeader: some View {
+        HStack(spacing: 14) {
+            MascotView(mood: .ready, size: 72)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("打卡小星球")
+                    .font(.system(.title2, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PlanetTheme.primaryText)
+                Text("养成好习惯，每天进步一点点")
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(PlanetTheme.secondaryText)
+                Text(L10n.format("版本 %@", appVersion))
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PlanetTheme.violet)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var actionCard: some View {
+        VStack(spacing: 10) {
+            VStack(spacing: 9) {
+                supportButton(
+                    title: "给个好评",
+                    subtitle: "在 App Store 分享你的使用感受",
+                    symbol: "star.fill",
+                    tint: PlanetTheme.gold
+                ) {
+                    requestReview()
+                }
+                .accessibilityHint(L10n.text("打开系统评分弹窗"))
+
+                supportButton(
+                    title: "支持开发",
+                    subtitle: "如果这个小星球对你有帮助",
+                    symbol: "heart.fill",
+                    tint: PlanetTheme.coral
+                ) {
+                    isShowingDonation = true
+                }
+                .accessibilityHint(L10n.text("查看微信和支付宝收款码"))
+            }
+        }
+    }
+
+    private var articleCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("写给每一位认真生活的人")
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(PlanetTheme.primaryText)
+                .padding(.bottom, 22)
+
+            articleSection(
+                title: "为什么做这个 App",
+                body: "做打卡小星球的起点很简单：习惯养成不应该是一件有压力的事。我用过许多越来越复杂的工具，也常常因为繁琐的设置忘记最初想做的那件小事。所以我想做一个安静、轻巧的地方，让你只需要记住今天要做什么，然后认真完成它。"
+            )
+            articleSection(
+                title: "免费，是我的选择",
+                body: "打卡小星球可以免费使用。我希望记录生活、培养习惯这件事，不会因为付费墙而变得遥远。你可以安心创建计划、记录打卡、查看自己的进步，不需要为了基础功能订阅。"
+            )
+            articleSection(
+                title: "你的数据，只属于你",
+                body: "你的习惯、打卡记录和设置都保存在这台设备上。App 不要求注册账号，不会把这些内容上传到任何服务器，也不会用于广告追踪或数据分析。如果你开启了系统设备备份，数据可能会随系统备份保存，是否备份由你的系统设置决定。"
+            )
+            articleSection(
+                title: "关于隐私",
+                body: "我相信，最好的隐私保护不是写一份很长的承诺，而是尽量少收集数据。当前版本不提供账号、云同步或跨设备共享，也不嵌入广告追踪。你的每一次打卡，都是你和自己之间的小约定。"
+            )
+
+            Text("谢谢你让这颗小星球，成为生活里的一部分。")
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(PlanetTheme.violet)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 24)
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(PlanetTheme.surface.opacity(0.97))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(PlanetTheme.separator.opacity(0.32), lineWidth: 1)
+        }
+    }
+
+    private func supportButton(
+        title: String,
+        subtitle: String,
+        symbol: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(tint)
+                    .frame(width: 38, height: 38)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.text(title))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Text(L10n.text(subtitle))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PlanetTheme.secondaryText.opacity(0.7))
+            }
+            .padding(.horizontal, 13)
+            .frame(minHeight: 64)
+            .background(tint.opacity(0.11))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(tint.opacity(0.22), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.text(title))
+    }
+
+    private func articleSection(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
             Text(L10n.text(title))
                 .font(.system(.headline, design: .rounded, weight: .bold))
                 .foregroundStyle(PlanetTheme.primaryText)
             Text(L10n.text(body))
-                .font(.system(.body, design: .rounded, weight: .regular))
+                .font(.system(.body, design: .rounded))
                 .foregroundStyle(PlanetTheme.secondaryText)
-                .lineSpacing(5)
+                .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.bottom, 24)
     }
 
     private var appVersion: String {

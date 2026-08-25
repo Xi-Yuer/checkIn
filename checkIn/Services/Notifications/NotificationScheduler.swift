@@ -29,6 +29,7 @@ protocol NotificationScheduling: Sendable {
     func requestAuthorization() async throws -> Bool
     func reconcile(tasks: [TaskDTO], completedDayKeys: [UUID: Set<String>], now: Date) async throws
     func remove(taskID: UUID) async
+    func removeAll() async
 }
 
 final class UserNotificationScheduler: NotificationScheduling, @unchecked Sendable {
@@ -82,6 +83,16 @@ final class UserNotificationScheduler: NotificationScheduling, @unchecked Sendab
         let ids = pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: ids)
         center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
+    func removeAll() async {
+        let pending = await center.pendingNotificationRequests()
+        let pendingIDs = pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: pendingIDs)
+
+        let delivered = await center.deliveredNotifications()
+        let deliveredIDs = delivered.map { $0.request.identifier }.filter { $0.hasPrefix(identifierPrefix) }
+        center.removeDeliveredNotifications(withIdentifiers: deliveredIDs)
     }
 
     private func shouldSchedule(_ task: TaskDTO, now: Date) -> Bool {
@@ -183,4 +194,5 @@ struct DisabledNotificationScheduler: NotificationScheduling {
     func requestAuthorization() async throws -> Bool { false }
     func reconcile(tasks: [TaskDTO], completedDayKeys: [UUID: Set<String>], now: Date) async throws {}
     func remove(taskID: UUID) async {}
+    func removeAll() async {}
 }

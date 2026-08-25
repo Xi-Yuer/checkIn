@@ -128,10 +128,13 @@ struct AppSettings: Codable, Equatable, Sendable {
     var appearance: AppAppearance = .system
     // Optional keeps settings saved by older app versions decodable.
     var language: AppLanguage? = nil
+    // Optional keeps settings saved before the notification master switch decodable.
+    var notificationsEnabled: Bool? = nil
     var taskFilter: TaskFilter = .all
     var taskSort: TaskSort = .manual
 
     static let `default` = AppSettings()
 
     var appLanguage: AppLanguage { language ?? .system }
+    var areNotificationsEnabled: Bool { notificationsEnabled ?? true }
 }

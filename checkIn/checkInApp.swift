@@ -1,8 +1,10 @@
 import SwiftUI
+import StoreKit
 
 @main
 struct checkInApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
     @StateObject private var store: AppStore
 
     init() {
@@ -18,6 +20,11 @@ struct checkInApp: App {
                 .tint(PlanetTheme.violet)
                 .onOpenURL { url in
                     Task { await store.handle(url: url) }
+                }
+                .onChange(of: store.reviewRequestID) { requestID in
+                    guard requestID != nil else { return }
+                    requestReview()
+                    store.consumeReviewRequest()
                 }
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }

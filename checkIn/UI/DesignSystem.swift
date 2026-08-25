@@ -400,6 +400,10 @@ struct CelebrationOverlay: View {
     @State private var visible = false
 
     private let artAspect: CGFloat = 864 / 973
+    // The illustration contains its own light card surface in both appearances,
+    // so overlay copy must keep a dark, high-contrast ink color in dark mode too.
+    private let celebrationTitleColor = Color(hex: "#3D2864")
+    private let celebrationDetailColor = Color(hex: "#716184")
 
     var body: some View {
         ZStack {
@@ -446,7 +450,7 @@ struct CelebrationOverlay: View {
 
             Text("今日星光已点亮")
                 .font(.system(size: titleSize, weight: .heavy, design: .rounded))
-                .foregroundStyle(PlanetTheme.primaryText)
+                .foregroundStyle(celebrationTitleColor)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.75)
                 .lineLimit(1)
@@ -455,7 +459,7 @@ struct CelebrationOverlay: View {
 
             Text(habit.title)
                 .font(.system(size: nameSize, weight: .medium, design: .rounded))
-                .foregroundStyle(PlanetTheme.secondaryText)
+                .foregroundStyle(celebrationDetailColor)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.7)
                 .lineLimit(2)
