@@ -1,17 +1,8 @@
 <div align="center">
 
-<table>
-  <tr>
-    <td width="33%"><img alt="主界面" src="https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead" width="100%"/></td>
-    <td width="33%"><img alt="任务列表" src="https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191" width="100%"/></td>
-    <td width="33%"><img alt="任务详情" src="https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d" width="100%"/></td>
-  </tr>
-  <tr>
-    <td width="33%"><img alt="统计数据" src="https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36" width="100%"/></td>
-    <td width="33%"><img alt="提醒设置" src="https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9" width="100%"/></td>
-    <td width="33%"></td>
-  </tr>
-</table>
+| 主界面 | 任务列表 | 任务详情 | 统计数据 | 提醒设置 |
+|:---:|:---:|:---:|:---:|:---:|
+| ![主界面](https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead) | ![任务列表](https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191) | ![任务详情](https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d) | ![统计数据](https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36) | ![提醒设置](https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9) |
 
 </div>
 
