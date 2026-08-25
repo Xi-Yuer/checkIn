@@ -1,3 +1,18 @@
+
+<img width="332" height="722" alt="image" src="https://github.com/user-attachments/assets/b3d27b03-c921-4ec0-9c53-42f533302ead" />
+
+<img width="344" height="726" alt="image" src="https://github.com/user-attachments/assets/d4ff2674-ccb7-44e4-82f4-7a92b6b8a191" />
+
+<img width="344" height="730" alt="image" src="https://github.com/user-attachments/assets/ad37d521-b1b0-43b4-9c50-914799b3f34d" />
+
+<img width="344" height="730" alt="image" src="https://github.com/user-attachments/assets/5cb0b754-7b90-4411-8387-99c47fd53f36" />
+
+<img width="344" height="725" alt="image" src="https://github.com/user-attachments/assets/99f96be8-0a99-469a-9bd3-63b3fe35a7c9" />
+
+
+
+
+
 # 打卡小星球
 
 一款面向 iOS 16+ 的本地优先习惯打卡应用。任务、打卡历史和统计只保存在设备上；桌面小组件通过 App Group 中的轻量 JSON 快照读取今日状态。
