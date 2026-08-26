@@ -83,6 +83,7 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
     public var isPaused: Bool
     public var schedule: WidgetSchedule
     public var currentStreak: Int
+    public var cumulativeCompletedDays: Int
 
     public init(
         id: UUID,
@@ -94,7 +95,8 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         completedCount: Int,
         isPaused: Bool = false,
         schedule: WidgetSchedule,
-        currentStreak: Int = 0
+        currentStreak: Int = 0,
+        cumulativeCompletedDays: Int = 0
     ) {
         self.id = id
         self.title = title
@@ -106,6 +108,7 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         self.isPaused = isPaused
         self.schedule = schedule
         self.currentStreak = max(0, currentStreak)
+        self.cumulativeCompletedDays = max(0, cumulativeCompletedDays)
     }
 
     public init(from decoder: Decoder) throws {
@@ -120,6 +123,7 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         isPaused = try container.decodeIfPresent(Bool.self, forKey: .isPaused) ?? false
         schedule = try container.decode(WidgetSchedule.self, forKey: .schedule)
         currentStreak = try container.decodeIfPresent(Int.self, forKey: .currentStreak) ?? 0
+        cumulativeCompletedDays = try container.decodeIfPresent(Int.self, forKey: .cumulativeCompletedDays) ?? 0
     }
 
     public func count(on date: Date, snapshotDayKey: String, calendar: Calendar = .autoupdatingCurrent) -> Int {
@@ -128,16 +132,6 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
             : 0
     }
 
-    public func persistedDays(on date: Date, calendar: Calendar = .autoupdatingCurrent) -> Int {
-        guard let startKey = schedule.startDayKey,
-              let start = WidgetDayKey.date(from: startKey, calendar: calendar) else {
-            return 1
-        }
-        let from = calendar.startOfDay(for: start)
-        let to = calendar.startOfDay(for: date)
-        let days = calendar.dateComponents([.day], from: from, to: to).day ?? 0
-        return max(1, days + 1)
-    }
 }
 
 public struct WidgetSnapshot: Codable, Equatable, Sendable {
@@ -299,6 +293,7 @@ public struct AppGroupWidgetSnapshotStore: WidgetSnapshotStore, Sendable {
                 snapshot.tasks[index].completedCount += 1
                 if snapshot.tasks[index].completedCount >= task.dailyGoal {
                     snapshot.tasks[index].currentStreak += 1
+                    snapshot.tasks[index].cumulativeCompletedDays += 1
                 }
                 let updatedData = try encoder.encode(snapshot)
                 guard updatedData.count <= CheckInSharedConstants.maximumSnapshotBytes else {

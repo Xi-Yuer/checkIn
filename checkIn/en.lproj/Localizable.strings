@@ -45,6 +45,9 @@
 "连续" = "Streak";
 "已暂停" = "Paused";
 "天" = "days";
+"累计" = "Total";
+"连续 %d 天，累计打卡 %d 天" = "%d-day streak, %d total check-in days";
+"已暂停，曾连续 %d 天，累计打卡 %d 天" = "Paused. Previous streak: %d days, %d total check-in days";
 "已暂停，曾连续 %d 天" = "Paused. Previous best: a %d-day streak.";
 "连续 %d 天" = "%d-day streak";
 "每天" = "Daily";

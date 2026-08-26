@@ -34,6 +34,7 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
         let limitedTasks = Array(fetchedTasks.prefix(CheckInSharedConstants.maximumTaskCount))
         let progresses = try await checkIns.progresses(taskIDs: limitedTasks.map(\.id), on: date)
         let streaks = try await checkIns.streaks(taskIDs: limitedTasks.map(\.id), through: date)
+        let completedDayKeys = try await checkIns.completedDayKeys(taskIDs: limitedTasks.map(\.id))
         let scheduleService = TaskScheduleService()
 
         var taskSnapshots: [WidgetTaskSnapshot] = []
@@ -61,7 +62,8 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
                             return DayKey(date: candidate, calendar: calendar).rawValue
                         }
                     ),
-                    currentStreak: streaks[task.id] ?? 0
+                    currentStreak: streaks[task.id] ?? 0,
+                    cumulativeCompletedDays: completedDayKeys[task.id]?.count ?? 0
                 )
             )
         }

@@ -84,7 +84,8 @@ struct HabitsView: View {
                 ForEach(store.habits) { habit in
                     HabitSummaryRow(
                         habit: habit,
-                        streak: store.habitStreaks[habit.id] ?? 0
+                        streak: store.habitStreaks[habit.id] ?? 0,
+                        completedDays: store.habitCompletedDays[habit.id] ?? 0
                     )
                     .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
                     .overlay {

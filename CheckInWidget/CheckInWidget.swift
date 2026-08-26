@@ -282,7 +282,7 @@ private struct FocusedHabitWidgetView: View {
             Spacer(minLength: 4)
 
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text("\(task.persistedDays(on: entry.date))")
+                Text("\(task.cumulativeCompletedDays)")
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .foregroundStyle(.primary)
                     .monospacedDigit()
@@ -334,7 +334,7 @@ private struct FocusedHabitWidgetView: View {
     private func accessibilityText(task: WidgetTaskSnapshot, count: Int) -> String {
         var parts = [
             task.title,
-            "已坚持 \(task.persistedDays(on: entry.date)) 天",
+            "累计打卡 \(task.cumulativeCompletedDays) 天",
             "连续 \(task.currentStreak) 天"
         ]
         if task.dailyGoal > 1 {

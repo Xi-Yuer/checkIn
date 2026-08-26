@@ -26,6 +26,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var habits: [TaskDTO] = []
     @Published private(set) var todayProgress: [UUID: DailyProgress] = [:]
     @Published private(set) var habitStreaks: [UUID: Int] = [:]
+    @Published private(set) var habitCompletedDays: [UUID: Int] = [:]
     @Published private(set) var checkIns: [CheckInDTO] = []
     @Published private(set) var upcomingSpecificDateItems: [UpcomingSpecificDateItem] = []
     @Published private(set) var statistics: StatisticsSummary
@@ -458,7 +459,7 @@ final class AppStore: ObservableObject {
     private func reloadCoreState() async throws {
         habits = try await tasks.fetch(TaskQuery(filter: .all, sort: habitSort, date: today))
         todayProgress = try await checkInRepository.progresses(taskIDs: habits.map(\.id), on: today)
-        await reloadHabitStreaks()
+        await reloadHabitMetrics()
         try await reloadDerivedState()
         await reloadUpcomingSpecificDates()
     }
@@ -480,15 +481,19 @@ final class AppStore: ObservableObject {
         }
     }
 
-    private func reloadHabitStreaks() async {
+    private func reloadHabitMetrics() async {
         habitStreaks = (try? await checkInRepository.streaks(
             taskIDs: habits.map(\.id),
             through: today
         )) ?? [:]
+        let completedDayKeys = (try? await checkInRepository.completedDayKeys(taskIDs: habits.map(\.id))) ?? [:]
+        habitCompletedDays = completedDayKeys.mapValues(\.count)
     }
 
     private func refreshStreak(for habitID: UUID) async {
         habitStreaks[habitID] = (try? await checkInRepository.streak(taskID: habitID, through: today)) ?? 0
+        let completedDayKeys = try? await checkInRepository.completedDayKeys(taskIDs: [habitID])
+        habitCompletedDays[habitID] = completedDayKeys?[habitID]?.count ?? 0
     }
 
     private func reloadDerivedState() async throws {

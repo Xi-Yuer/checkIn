@@ -251,6 +251,7 @@ private struct LiquidWave: Shape {
 struct HabitSummaryRow: View {
     let habit: TaskDTO
     let streak: Int
+    let completedDays: Int
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -278,32 +279,39 @@ struct HabitSummaryRow: View {
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(habit.isArchived ? L10n.text("已暂停") : L10n.text("连续"))
-                    .font(.system(.caption2, design: .rounded, weight: .semibold))
-                    .foregroundStyle(PlanetTheme.secondaryText)
-
+            VStack(alignment: .trailing, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text("\(streak)")
+                    Text("\(completedDays)")
                         .font(.system(size: 22, weight: .heavy, design: .rounded))
                         .foregroundStyle(PlanetTheme.primaryText)
-                Text(L10n.text("天"))
+                        .monospacedDigit()
+                    Text(L10n.text("天"))
                         .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(PlanetTheme.secondaryText)
                 }
+
+                Text(
+                    habit.isArchived
+                        ? L10n.format("已暂停，曾连续 %d 天", streak)
+                        : L10n.format("连续 %d 天", streak)
+                )
+                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                .foregroundStyle(PlanetTheme.secondaryText)
+                .lineLimit(1)
             }
-            .frame(minWidth: 44, alignment: .trailing)
+            .frame(minWidth: 72, alignment: .trailing)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
                 habit.isArchived
-                    ? L10n.format("已暂停，曾连续 %d 天", streak)
-                    : L10n.format("连续 %d 天", streak)
+                    ? L10n.format("已暂停，曾连续 %d 天，累计打卡 %d 天", streak, completedDays)
+                    : L10n.format("连续 %d 天，累计打卡 %d 天", streak, completedDays)
             )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 104 : 88)
     }
+
 }
 
 struct HabitIconBadge: View {

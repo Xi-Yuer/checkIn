@@ -786,10 +786,11 @@ final class DomainAndRepositoryTests: XCTestCase {
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(WidgetTaskSnapshot.self, from: json)
         XCTAssertEqual(decoded.currentStreak, 0)
+        XCTAssertEqual(decoded.cumulativeCompletedDays, 0)
         XCTAssertEqual(decoded.dailyGoal, 1)
     }
 
-    func testWidgetTaskPersistedDaysCountsFromStartDayInclusive() {
+    func testWidgetTaskSnapshotStoresCumulativeCompletedDays() throws {
         let task = WidgetTaskSnapshot(
             id: UUID(),
             title: "阅读",
@@ -798,10 +799,11 @@ final class DomainAndRepositoryTests: XCTestCase {
             sortOrder: 0,
             dailyGoal: 1,
             completedCount: 0,
-            schedule: WidgetSchedule(kind: .daily, startDayKey: "2026-08-01")
+            schedule: WidgetSchedule(kind: .daily, startDayKey: "2026-08-01"),
+            cumulativeCompletedDays: 7
         )
-        XCTAssertEqual(task.persistedDays(on: date(2026, 8, 1), calendar: calendar), 1)
-        XCTAssertEqual(task.persistedDays(on: date(2026, 8, 21), calendar: calendar), 21)
+        let decoded = try JSONDecoder().decode(WidgetTaskSnapshot.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(decoded.cumulativeCompletedDays, 7)
     }
 
     func testAppImportsWidgetQueueOnceAndRemovesIt() async throws {
