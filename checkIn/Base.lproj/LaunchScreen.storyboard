@@ -14,11 +14,11 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Launch" translatesAutoresizingMaskIntoConstraints="NO" id="splash-image">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchScreenImage.png" translatesAutoresizingMaskIntoConstraints="NO" id="splash-image">
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                             </imageView>
                         </subviews>
-                        <color key="backgroundColor" red="0.035" green="0.004" blue="0.188" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.4784313725" green="0.4352941176" blue="0.8980392157" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="splash-image" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="launch-top"/>
                             <constraint firstItem="splash-image" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="launch-leading"/>
@@ -33,6 +33,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="Launch" width="473" height="1024"/>
+        <image name="LaunchScreenImage.png" width="852" height="1846"/>
     </resources>
 </document>
