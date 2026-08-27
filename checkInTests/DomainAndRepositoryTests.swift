@@ -412,13 +412,21 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
 
         let insertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 19))
-        XCTAssertEqual(insertions, 2)
+        XCTAssertEqual(insertions, 1)
         let august18Progress = try await repositories.checkIns.progress(taskID: taskID, on: date(2026, 8, 18))
         XCTAssertEqual(august18Progress.completed, 3)
         let august19Progress = try await repositories.checkIns.progress(taskID: taskID, on: date(2026, 8, 19))
-        XCTAssertEqual(august19Progress.completed, 3)
+        XCTAssertEqual(august19Progress.completed, 0)
         let repeatedInsertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 19))
         XCTAssertEqual(repeatedInsertions, 0)
+
+        let nextDayInsertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 20))
+        XCTAssertEqual(nextDayInsertions, 1)
+        let completedAugust19Progress = try await repositories.checkIns.progress(
+            taskID: taskID,
+            on: date(2026, 8, 19)
+        )
+        XCTAssertEqual(completedAugust19Progress.completed, 3)
 
         let range = DateInterval(start: date(2026, 8, 17), end: date(2026, 8, 20))
         let automaticEvents = try await repositories.checkIns.history(taskID: taskID, range: range)
@@ -438,11 +446,11 @@ final class DomainAndRepositoryTests: XCTestCase {
             TaskDraft(title: "自动阅读", dailyTarget: 2, autoCheckInEnabled: true)
         )
         let targetDate = date(2026, 8, 19)
-        _ = try await repositories.checkIns.processAutomaticCheckIns(through: targetDate)
+        _ = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 20))
 
         let removed = try await repositories.checkIns.removeCheckIns(taskID: taskID, on: targetDate)
         XCTAssertEqual(removed.completed, 0)
-        let repeatedInsertions = try await repositories.checkIns.processAutomaticCheckIns(through: targetDate)
+        let repeatedInsertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 20))
         XCTAssertEqual(repeatedInsertions, 0)
         let failedProgress = try await repositories.checkIns.progress(taskID: taskID, on: targetDate)
         XCTAssertEqual(failedProgress.completed, 0)

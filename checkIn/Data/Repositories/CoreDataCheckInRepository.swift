@@ -148,13 +148,16 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             request.predicate = NSPredicate(format: "autoCheckInEnabled == YES")
             let tasks = try context.fetch(request)
             let today = calendar.startOfDay(for: date)
-            let todayKey = DayKey(date: today, calendar: calendar).rawValue
+            guard let lastCompletedDay = calendar.date(byAdding: .day, value: -1, to: today) else {
+                return 0
+            }
+            let lastCompletedDayKey = DayKey(date: lastCompletedDay, calendar: calendar).rawValue
             let scheduleService = TaskScheduleService()
             var insertedCount = 0
 
             for task in tasks {
                 if let lastProcessedKey = task.autoCheckInLastProcessedDayKey,
-                   lastProcessedKey >= todayKey {
+                   lastProcessedKey >= lastCompletedDayKey {
                     continue
                 }
                 guard let startKey = task.autoCheckInStartDayKey,
@@ -167,7 +170,7 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
                     lastProcessedDate.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) } ?? startDate
                 )
 
-                while candidate <= today {
+                while candidate <= lastCompletedDay {
                     if scheduleService.isScheduled(taskDTO, on: candidate, calendar: calendar) {
                         let dayKey = DayKey(date: candidate, calendar: calendar).rawValue
                         let completed = try Self.total(taskID: task.id, dayKey: dayKey, context: context)
@@ -188,7 +191,7 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
                     guard let next = calendar.date(byAdding: .day, value: 1, to: candidate) else { break }
                     candidate = next
                 }
-                task.autoCheckInLastProcessedDayKey = todayKey
+                task.autoCheckInLastProcessedDayKey = lastCompletedDayKey
                 task.updatedAt = date
             }
 
