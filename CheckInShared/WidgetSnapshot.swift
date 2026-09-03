@@ -7,7 +7,7 @@ public enum CheckInSharedConstants {
     public static let snapshotFileName = "widget_snapshot_v1.json"
     public static let pendingActionsFileName = "widget_pending_checkins_v1.json"
     public static let carouselIndexKey = "widget.carouselIndex"
-    public static let supportedSnapshotVersion = 1
+    public static let supportedSnapshotVersion = 2
     public static let maximumTaskCount = 200
     public static let maximumSnapshotBytes = 512 * 1_024
 }
@@ -84,6 +84,11 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
     public var schedule: WidgetSchedule
     public var currentStreak: Int
     public var cumulativeCompletedDays: Int
+    public var fixedTimeEnabled: Bool
+    public var fixedTimeHour: Int?
+    public var fixedTimeMinute: Int?
+    public var fixedTimeToleranceMinutes: Int
+    public var isPunctualComplete: Bool
 
     public init(
         id: UUID,
@@ -96,7 +101,12 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         isPaused: Bool = false,
         schedule: WidgetSchedule,
         currentStreak: Int = 0,
-        cumulativeCompletedDays: Int = 0
+        cumulativeCompletedDays: Int = 0,
+        fixedTimeEnabled: Bool = false,
+        fixedTimeHour: Int? = nil,
+        fixedTimeMinute: Int? = nil,
+        fixedTimeToleranceMinutes: Int = 15,
+        isPunctualComplete: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -109,6 +119,11 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         self.schedule = schedule
         self.currentStreak = max(0, currentStreak)
         self.cumulativeCompletedDays = max(0, cumulativeCompletedDays)
+        self.fixedTimeEnabled = fixedTimeEnabled
+        self.fixedTimeHour = fixedTimeHour
+        self.fixedTimeMinute = fixedTimeMinute
+        self.fixedTimeToleranceMinutes = fixedTimeToleranceMinutes
+        self.isPunctualComplete = isPunctualComplete
     }
 
     public init(from decoder: Decoder) throws {
@@ -124,6 +139,29 @@ public struct WidgetTaskSnapshot: Codable, Identifiable, Equatable, Sendable {
         schedule = try container.decode(WidgetSchedule.self, forKey: .schedule)
         currentStreak = try container.decodeIfPresent(Int.self, forKey: .currentStreak) ?? 0
         cumulativeCompletedDays = try container.decodeIfPresent(Int.self, forKey: .cumulativeCompletedDays) ?? 0
+        fixedTimeEnabled = try container.decodeIfPresent(Bool.self, forKey: .fixedTimeEnabled) ?? false
+        fixedTimeHour = try container.decodeIfPresent(Int.self, forKey: .fixedTimeHour)
+        fixedTimeMinute = try container.decodeIfPresent(Int.self, forKey: .fixedTimeMinute)
+        fixedTimeToleranceMinutes = try container.decodeIfPresent(Int.self, forKey: .fixedTimeToleranceMinutes) ?? 15
+        isPunctualComplete = try container.decodeIfPresent(Bool.self, forKey: .isPunctualComplete) ?? false
+    }
+
+    public func fixedTimeWindow(on date: Date, calendar: Calendar = .autoupdatingCurrent) -> DateInterval? {
+        guard fixedTimeEnabled, let fixedTimeHour, let fixedTimeMinute else { return nil }
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return nil }
+        var components = calendar.dateComponents([.year, .month, .day], from: startOfDay)
+        components.hour = fixedTimeHour
+        components.minute = fixedTimeMinute
+        guard let target = calendar.date(from: components) else { return nil }
+        let delta = TimeInterval(fixedTimeToleranceMinutes * 60)
+        return DateInterval(start: max(startOfDay, target.addingTimeInterval(-delta)),
+                            end: min(nextDay.addingTimeInterval(-0.001), target.addingTimeInterval(delta)))
+    }
+
+    public func canCheckIn(at date: Date, calendar: Calendar = .autoupdatingCurrent) -> Bool {
+        guard let window = fixedTimeWindow(on: date, calendar: calendar) else { return true }
+        return date >= window.start
     }
 
     public func count(on date: Date, snapshotDayKey: String, calendar: Calendar = .autoupdatingCurrent) -> Int {
@@ -248,7 +286,7 @@ public struct AppGroupWidgetSnapshotStore: WidgetSnapshotStore, Sendable {
         guard let data = try? Data(contentsOf: fileURL) else { return .missing }
         guard data.count <= CheckInSharedConstants.maximumSnapshotBytes else { return .corrupted }
         guard let header = try? decoder.decode(VersionHeader.self, from: data) else { return .corrupted }
-        guard header.version == CheckInSharedConstants.supportedSnapshotVersion else {
+        guard (1...CheckInSharedConstants.supportedSnapshotVersion).contains(header.version) else {
             return .unsupportedVersion
         }
         guard let snapshot = try? decoder.decode(WidgetSnapshot.self, from: data) else { return .corrupted }

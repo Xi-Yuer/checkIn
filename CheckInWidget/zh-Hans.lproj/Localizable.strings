@@ -1,1 +1,5 @@
 /* Chinese source strings are used as localization keys. */
+"已完成 · 未准时" = "已完成 · 未准时";
+"%@ 后可打卡" = "%@ 后可打卡";
+"补打 +1" = "补打 +1";
+"补打" = "补打";

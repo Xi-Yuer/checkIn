@@ -42,6 +42,121 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertFalse(service.isScheduled(task, on: saturday, calendar: calendar))
     }
 
+    func testFixedTimeWindowAndStatesIncludeBoundaries() {
+        var task = makeTask(schedule: .daily)
+        task.fixedTimeEnabled = true
+        task.fixedTimeHour = 9
+        task.fixedTimeMinute = 0
+        task.fixedTimeToleranceMinutes = 15
+        let service = FixedTimeCheckInService()
+        let day = date(2026, 8, 19)
+        let start = calendar.date(from: DateComponents(year: 2026, month: 8, day: 19, hour: 8, minute: 45))!
+        let end = calendar.date(from: DateComponents(year: 2026, month: 8, day: 19, hour: 9, minute: 15))!
+
+        XCTAssertEqual(service.window(for: task, on: day, calendar: calendar)?.start, start)
+        XCTAssertEqual(service.window(for: task, on: day, calendar: calendar)?.end, end)
+        XCTAssertEqual(service.state(for: task, on: day, now: start, progress: nil, events: [], calendar: calendar), .open(closesAt: end))
+        XCTAssertEqual(service.state(for: task, on: day, now: end, progress: nil, events: [], calendar: calendar), .open(closesAt: end))
+        XCTAssertThrowsError(try service.validateCheckIn(task: task, scheduledDay: day, occurredAt: start.addingTimeInterval(-1), calendar: calendar)) {
+            XCTAssertEqual($0 as? RepositoryError, .checkInWindowNotOpen)
+        }
+        XCTAssertNoThrow(try service.validateCheckIn(task: task, scheduledDay: day, occurredAt: end, calendar: calendar))
+    }
+
+    func testFixedTimeCompletionDistinguishesPunctualAndLate() {
+        var task = makeTask(schedule: .daily, dailyTarget: 2)
+        task.fixedTimeEnabled = true
+        task.fixedTimeHour = 9
+        task.fixedTimeMinute = 0
+        task.fixedTimeToleranceMinutes = 15
+        let day = date(2026, 8, 19)
+        let inside = calendar.date(from: DateComponents(year: 2026, month: 8, day: 19, hour: 9))!
+        let late = calendar.date(from: DateComponents(year: 2026, month: 8, day: 19, hour: 10))!
+        let progress = DailyProgress(taskID: task.id, date: day, completed: 2, target: 2)
+        let service = FixedTimeCheckInService()
+
+        XCTAssertEqual(service.state(for: task, on: day, now: late, progress: progress,
+                                     events: [makeCheckIn(task: task, date: inside, value: 2)], calendar: calendar), .punctualComplete)
+        XCTAssertEqual(service.state(for: task, on: day, now: late, progress: progress,
+                                     events: [makeCheckIn(task: task, date: inside), makeCheckIn(task: task, date: late)], calendar: calendar), .lateComplete)
+    }
+
+    func testRepositoryBlocksEarlyFixedTimeCheckInButAllowsLateMakeUp() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(date(2026, 8, 19)),
+            calendar: calendar
+        )
+        let id = try await repositories.tasks.create(TaskDraft(
+            title: "晨间阅读",
+            fixedTimeEnabled: true,
+            fixedTimeHour: 9,
+            fixedTimeMinute: 0,
+            fixedTimeToleranceMinutes: 15
+        ))
+        let early = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 8, minute: 44))!
+        let late = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 10))!
+
+        do {
+            _ = try await repositories.checkIns.checkIn(taskID: id, at: early, value: 1, source: .app)
+            XCTFail("Expected the repository to reject an early check-in")
+        } catch {
+            XCTAssertEqual(error as? RepositoryError, .checkInWindowNotOpen)
+        }
+        let progress = try await repositories.checkIns.checkIn(taskID: id, at: late, value: 1, source: .app)
+        XCTAssertTrue(progress.isComplete)
+    }
+
+    func testFixedTimeConfigurationStartsOnFollowingDay() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let creationDay = date(2026, 8, 19)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(creationDay),
+            calendar: calendar
+        )
+        let id = try await repositories.tasks.create(TaskDraft(
+            title: "晨间阅读",
+            fixedTimeEnabled: true,
+            fixedTimeHour: 9,
+            fixedTimeMinute: 0
+        ))
+        let fetchedTask = try await repositories.tasks.get(id: id)
+        let task = try XCTUnwrap(fetchedTask)
+        let service = TaskScheduleService()
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: creationDay)!
+
+        XCTAssertFalse(service.plan(for: task, on: creationDay, calendar: calendar).fixedTimeEnabled)
+        XCTAssertTrue(service.plan(for: task, on: nextDay, calendar: calendar).fixedTimeEnabled)
+    }
+
+    func testFutureFixedTimeConfigurationStartsToday() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let creationTime = date(2026, 8, 19)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(creationTime),
+            calendar: calendar
+        )
+        let id = try await repositories.tasks.create(TaskDraft(
+            title: "午间阅读",
+            fixedTimeEnabled: true,
+            fixedTimeHour: 11,
+            fixedTimeMinute: 0,
+            reminderEnabled: true,
+            reminderHour: 11,
+            reminderMinute: 0
+        ))
+        let fetchedTask = try await repositories.tasks.get(id: id)
+        let task = try XCTUnwrap(fetchedTask)
+        let plan = TaskScheduleService().plan(for: task, on: creationTime, calendar: calendar)
+
+        XCTAssertTrue(plan.fixedTimeEnabled)
+        XCTAssertEqual(plan.fixedTimeHour, 11)
+        XCTAssertEqual(plan.fixedTimeMinute, 0)
+    }
+
     func testSpecificDatesSupportOnceYearlyLeapDayAndCountdownWindow() {
         let once = TaskSpecificDate(date: date(2026, 8, 25), recurrence: .once, calendar: calendar)
         let yearly = TaskSpecificDate(date: date(2024, 2, 29), recurrence: .yearly, calendar: calendar)
@@ -390,7 +505,7 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertEqual(historyCount, 1)
     }
 
-    func testAutomaticCheckInStartsTomorrowBackfillsAndIsIdempotent() async throws {
+    func testAutomaticCheckInProcessesCreationDayOnNextLaunchAndIsIdempotent() async throws {
         let createdAt = date(2026, 8, 17)
         let persistence = PersistenceController(inMemory: true)
         let repositories = CoreDataRepositories(
@@ -412,7 +527,9 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
 
         let insertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 19))
-        XCTAssertEqual(insertions, 1)
+        XCTAssertEqual(insertions, 2)
+        let august17Progress = try await repositories.checkIns.progress(taskID: taskID, on: createdAt)
+        XCTAssertEqual(august17Progress.completed, 3)
         let august18Progress = try await repositories.checkIns.progress(taskID: taskID, on: date(2026, 8, 18))
         XCTAssertEqual(august18Progress.completed, 3)
         let august19Progress = try await repositories.checkIns.progress(taskID: taskID, on: date(2026, 8, 19))
@@ -428,10 +545,10 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
         XCTAssertEqual(completedAugust19Progress.completed, 3)
 
-        let range = DateInterval(start: date(2026, 8, 17), end: date(2026, 8, 20))
+        let range = DateInterval(start: calendar.startOfDay(for: createdAt), end: date(2026, 8, 20))
         let automaticEvents = try await repositories.checkIns.history(taskID: taskID, range: range)
             .filter { $0.source == .automatic }
-        XCTAssertEqual(automaticEvents.map(\.value).sorted(), [2, 3])
+        XCTAssertEqual(automaticEvents.map(\.value).sorted(), [2, 3, 3])
     }
 
     func testRemovingWholeAutomaticDayDoesNotBackfillAgain() async throws {
@@ -448,8 +565,21 @@ final class DomainAndRepositoryTests: XCTestCase {
         let targetDate = date(2026, 8, 19)
         _ = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 20))
 
+        // Simulate legacy/migrated data whose automatic-processing cursor was lost.
+        let context = persistence.container.viewContext
+        try context.performAndWait {
+            let request = TaskEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", taskID as CVarArg)
+            let task = try XCTUnwrap(context.fetch(request).first)
+            task.autoCheckInLastProcessedDayKey = nil
+            try context.save()
+        }
+
         let removed = try await repositories.checkIns.removeCheckIns(taskID: taskID, on: targetDate)
         XCTAssertEqual(removed.completed, 0)
+        let fetchedTaskAfterRemoval = try await repositories.tasks.get(id: taskID)
+        let taskAfterRemoval = try XCTUnwrap(fetchedTaskAfterRemoval)
+        XCTAssertEqual(taskAfterRemoval.autoCheckInLastProcessedDayKey, "2026-08-19")
         let repeatedInsertions = try await repositories.checkIns.processAutomaticCheckIns(through: date(2026, 8, 20))
         XCTAssertEqual(repeatedInsertions, 0)
         let failedProgress = try await repositories.checkIns.progress(taskID: taskID, on: targetDate)
@@ -458,6 +588,37 @@ final class DomainAndRepositoryTests: XCTestCase {
         _ = try await repositories.checkIns.checkIn(taskID: taskID, at: targetDate, value: 1, source: .app)
         let manualProgress = try await repositories.checkIns.progress(taskID: taskID, on: targetDate)
         XCTAssertEqual(manualProgress.completed, 1)
+    }
+
+    func testRemovingManualCheckInDoesNotSkipLaterAutomaticProcessing() async throws {
+        let createdAt = date(2026, 8, 17)
+        let persistence = PersistenceController(inMemory: true)
+        let repositories = CoreDataRepositories(
+            persistence: persistence,
+            dateProvider: FixedDateProvider(createdAt),
+            calendar: calendar
+        )
+        let taskID = try await repositories.tasks.create(
+            TaskDraft(title: "自动阅读", autoCheckInEnabled: true)
+        )
+        let futureDate = date(2026, 8, 19)
+        _ = try await repositories.checkIns.checkIn(
+            taskID: taskID,
+            at: futureDate,
+            value: 1,
+            source: .app
+        )
+
+        _ = try await repositories.checkIns.removeCheckIns(taskID: taskID, on: futureDate)
+        let fetchedTask = try await repositories.tasks.get(id: taskID)
+        XCTAssertEqual(fetchedTask?.autoCheckInLastProcessedDayKey, "2026-08-16")
+
+        let insertions = try await repositories.checkIns.processAutomaticCheckIns(
+            through: date(2026, 8, 20)
+        )
+        XCTAssertEqual(insertions, 3)
+        let progress = try await repositories.checkIns.progress(taskID: taskID, on: futureDate)
+        XCTAssertEqual(progress.completed, 1)
     }
 
     func testAutomaticCheckInEnablementRestartsFromFollowingDay() async throws {
@@ -480,8 +641,8 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
         let enabledTask = try await enabled.tasks.get(id: taskID)
         var task = try XCTUnwrap(enabledTask)
-        XCTAssertEqual(task.autoCheckInStartDayKey, "2026-08-19")
-        XCTAssertEqual(task.autoCheckInLastProcessedDayKey, "2026-08-18")
+        XCTAssertEqual(task.autoCheckInStartDayKey, "2026-08-18")
+        XCTAssertEqual(task.autoCheckInLastProcessedDayKey, "2026-08-17")
 
         let disabled = CoreDataRepositories(
             persistence: persistence,
@@ -505,8 +666,8 @@ final class DomainAndRepositoryTests: XCTestCase {
         )
         let reenabledTask = try await reenabled.tasks.get(id: taskID)
         task = try XCTUnwrap(reenabledTask)
-        XCTAssertEqual(task.autoCheckInStartDayKey, "2026-08-22")
-        XCTAssertEqual(task.autoCheckInLastProcessedDayKey, "2026-08-21")
+        XCTAssertEqual(task.autoCheckInStartDayKey, "2026-08-21")
+        XCTAssertEqual(task.autoCheckInLastProcessedDayKey, "2026-08-20")
     }
 
     func testPauseResumeAndCascadeDelete() async throws {
@@ -628,7 +789,7 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
     }
 
-    func testV1StoreMigratesToV2WithDefaults() throws {
+    func testV1StoreMigratesToV3WithDefaults() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("migration-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -648,6 +809,10 @@ final class DomainAndRepositoryTests: XCTestCase {
         XCTAssertFalse(task.autoCheckInEnabled)
         XCTAssertNil(task.autoCheckInStartDayKey)
         XCTAssertNil(task.autoCheckInLastProcessedDayKey)
+        XCTAssertFalse(task.fixedTimeEnabled)
+        XCTAssertNil(task.fixedTimeHour)
+        XCTAssertNil(task.fixedTimeMinute)
+        XCTAssertEqual(task.fixedTimeToleranceMinutes, 15)
     }
 
     func testDeepLinksAndWidgetSnapshotFailureModes() throws {

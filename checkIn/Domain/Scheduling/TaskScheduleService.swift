@@ -26,7 +26,11 @@ struct TaskScheduleService: Sendable {
             schedule: task.schedule,
             dailyTarget: task.dailyTarget,
             startDayKey: task.startDate.map { DayKey(date: $0, calendar: calendar).rawValue },
-            endDayKey: task.endDate.map { DayKey(date: $0, calendar: calendar).rawValue }
+            endDayKey: task.endDate.map { DayKey(date: $0, calendar: calendar).rawValue },
+            fixedTimeEnabled: task.fixedTimeEnabled,
+            fixedTimeHour: task.fixedTimeHour,
+            fixedTimeMinute: task.fixedTimeMinute,
+            fixedTimeToleranceMinutes: task.fixedTimeToleranceMinutes
         )
     }
 

@@ -174,6 +174,50 @@ struct TaskPlanRevision: Codable, Hashable, Sendable {
     let dailyTarget: Int
     let startDayKey: String?
     let endDayKey: String?
+    let fixedTimeEnabled: Bool
+    let fixedTimeHour: Int?
+    let fixedTimeMinute: Int?
+    let fixedTimeToleranceMinutes: Int
+
+    init(
+        effectiveDayKey: String,
+        schedule: TaskSchedule,
+        dailyTarget: Int,
+        startDayKey: String?,
+        endDayKey: String?,
+        fixedTimeEnabled: Bool = false,
+        fixedTimeHour: Int? = nil,
+        fixedTimeMinute: Int? = nil,
+        fixedTimeToleranceMinutes: Int = 15
+    ) {
+        self.effectiveDayKey = effectiveDayKey
+        self.schedule = schedule
+        self.dailyTarget = dailyTarget
+        self.startDayKey = startDayKey
+        self.endDayKey = endDayKey
+        self.fixedTimeEnabled = fixedTimeEnabled
+        self.fixedTimeHour = fixedTimeHour
+        self.fixedTimeMinute = fixedTimeMinute
+        self.fixedTimeToleranceMinutes = fixedTimeToleranceMinutes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case effectiveDayKey, schedule, dailyTarget, startDayKey, endDayKey
+        case fixedTimeEnabled, fixedTimeHour, fixedTimeMinute, fixedTimeToleranceMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        effectiveDayKey = try container.decode(String.self, forKey: .effectiveDayKey)
+        schedule = try container.decode(TaskSchedule.self, forKey: .schedule)
+        dailyTarget = try container.decode(Int.self, forKey: .dailyTarget)
+        startDayKey = try container.decodeIfPresent(String.self, forKey: .startDayKey)
+        endDayKey = try container.decodeIfPresent(String.self, forKey: .endDayKey)
+        fixedTimeEnabled = try container.decodeIfPresent(Bool.self, forKey: .fixedTimeEnabled) ?? false
+        fixedTimeHour = try container.decodeIfPresent(Int.self, forKey: .fixedTimeHour)
+        fixedTimeMinute = try container.decodeIfPresent(Int.self, forKey: .fixedTimeMinute)
+        fixedTimeToleranceMinutes = try container.decodeIfPresent(Int.self, forKey: .fixedTimeToleranceMinutes) ?? 15
+    }
 }
 
 struct TaskPauseInterval: Codable, Hashable, Sendable {
@@ -243,6 +287,10 @@ struct TaskDraft: Equatable, Sendable {
     var schedule: TaskSchedule = .daily
     var dailyTarget: Int = 1
     var autoCheckInEnabled: Bool = false
+    var fixedTimeEnabled: Bool = false
+    var fixedTimeHour: Int? = nil
+    var fixedTimeMinute: Int? = nil
+    var fixedTimeToleranceMinutes: Int = 15
     var reminderEnabled: Bool = false
     var reminderHour: Int? = nil
     var reminderMinute: Int? = nil
@@ -259,6 +307,10 @@ struct TaskDraft: Equatable, Sendable {
         schedule: TaskSchedule = .daily,
         dailyTarget: Int = 1,
         autoCheckInEnabled: Bool = false,
+        fixedTimeEnabled: Bool = false,
+        fixedTimeHour: Int? = nil,
+        fixedTimeMinute: Int? = nil,
+        fixedTimeToleranceMinutes: Int = 15,
         reminderEnabled: Bool = false,
         reminderHour: Int? = nil,
         reminderMinute: Int? = nil,
@@ -274,6 +326,10 @@ struct TaskDraft: Equatable, Sendable {
         self.schedule = schedule
         self.dailyTarget = dailyTarget
         self.autoCheckInEnabled = autoCheckInEnabled
+        self.fixedTimeEnabled = fixedTimeEnabled
+        self.fixedTimeHour = fixedTimeHour
+        self.fixedTimeMinute = fixedTimeMinute
+        self.fixedTimeToleranceMinutes = fixedTimeToleranceMinutes
         self.reminderEnabled = reminderEnabled
         self.reminderHour = reminderHour
         self.reminderMinute = reminderMinute
@@ -319,6 +375,20 @@ struct TaskDraft: Equatable, Sendable {
                 throw TaskValidationError.invalidReminderTime
             }
         }
+        if copy.fixedTimeEnabled {
+            guard let hour = copy.fixedTimeHour, (0...23).contains(hour),
+                  let minute = copy.fixedTimeMinute, (0...59).contains(minute) else {
+                throw TaskValidationError.invalidFixedTime
+            }
+            guard [5, 10, 15, 30, 60].contains(copy.fixedTimeToleranceMinutes) else {
+                throw TaskValidationError.invalidFixedTimeTolerance
+            }
+            copy.autoCheckInEnabled = false
+            if copy.reminderEnabled {
+                copy.reminderHour = hour
+                copy.reminderMinute = minute
+            }
+        }
 
         copy.colorHex = copy.colorHex.uppercased()
         return copy
@@ -344,6 +414,8 @@ enum TaskValidationError: LocalizedError, Equatable {
     case tooManySpecificDates
     case duplicateSpecificDates
     case invalidSpecificDateCountdown
+    case invalidFixedTime
+    case invalidFixedTimeTolerance
 
     var errorDescription: String? {
         switch self {
@@ -360,6 +432,8 @@ enum TaskValidationError: LocalizedError, Equatable {
         case .tooManySpecificDates: L10n.text("每个计划最多添加 20 个指定日期")
         case .duplicateSpecificDates: L10n.text("指定日期不能重复")
         case .invalidSpecificDateCountdown: L10n.text("提前展示天数需在 1 到 30 天之间")
+        case .invalidFixedTime: L10n.text("请选择有效固定时间")
+        case .invalidFixedTimeTolerance: L10n.text("请选择有效时间范围")
         }
     }
 }
@@ -386,6 +460,10 @@ struct TaskDTO: Identifiable, Codable, Hashable, Sendable {
     var autoCheckInEnabled: Bool
     var autoCheckInStartDayKey: String?
     var autoCheckInLastProcessedDayKey: String?
+    var fixedTimeEnabled: Bool = false
+    var fixedTimeHour: Int? = nil
+    var fixedTimeMinute: Int? = nil
+    var fixedTimeToleranceMinutes: Int = 15
     var reminderEnabled: Bool
     var reminderHour: Int?
     var reminderMinute: Int?
@@ -410,6 +488,10 @@ struct TaskDTO: Identifiable, Codable, Hashable, Sendable {
             schedule: schedule,
             dailyTarget: dailyTarget,
             autoCheckInEnabled: autoCheckInEnabled,
+            fixedTimeEnabled: fixedTimeEnabled,
+            fixedTimeHour: fixedTimeHour,
+            fixedTimeMinute: fixedTimeMinute,
+            fixedTimeToleranceMinutes: fixedTimeToleranceMinutes,
             reminderEnabled: reminderEnabled,
             reminderHour: reminderHour,
             reminderMinute: reminderMinute,
@@ -469,6 +551,7 @@ enum RepositoryError: LocalizedError, Equatable {
     case targetAlreadyReached
     case noCheckInToUndo
     case invalidValue
+    case checkInWindowNotOpen
     case persistence(String)
 
     var errorDescription: String? {
@@ -479,6 +562,7 @@ enum RepositoryError: LocalizedError, Equatable {
         case .targetAlreadyReached: L10n.text("今天的目标已经完成")
         case .noCheckInToUndo: L10n.text("今天没有可撤销的打卡")
         case .invalidValue: L10n.text("打卡数值必须大于零")
+        case .checkInWindowNotOpen: L10n.text("还没到打卡时间")
         case let .persistence(message): message
         }
     }

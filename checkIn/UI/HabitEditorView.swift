@@ -19,6 +19,7 @@ struct HabitEditorView: View {
     @State private var startDate: Date
     @State private var endDate: Date
     @State private var reminderTime: Date
+    @State private var fixedTime: Date
     @State private var validationMessage: String?
     @State private var isSaving = false
 
@@ -44,6 +45,9 @@ struct HabitEditorView: View {
         components.hour = initialDraft.reminderHour ?? 9
         components.minute = initialDraft.reminderMinute ?? 0
         _reminderTime = State(initialValue: Calendar.current.date(from: components) ?? now)
+        components.hour = initialDraft.fixedTimeHour ?? 9
+        components.minute = initialDraft.fixedTimeMinute ?? 0
+        _fixedTime = State(initialValue: Calendar.current.date(from: components) ?? now)
     }
 
     var body: some View {
@@ -226,6 +230,60 @@ struct HabitEditorView: View {
             }
             }
 
+            Toggle(isOn: $draft.fixedTimeEnabled) {
+                Text("固定时间打卡")
+                    .font(.system(.body, design: .rounded, weight: .medium))
+            }
+            .tint(PlanetTheme.mint)
+            .onChange(of: draft.fixedTimeEnabled) { enabled in
+                if enabled { draft.autoCheckInEnabled = false }
+            }
+
+            if draft.fixedTimeEnabled {
+                DatePicker("打卡时间", selection: $fixedTime, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.compact)
+                    .font(.system(.body, design: .rounded))
+
+                HStack(spacing: 12) {
+                    Text("允许提前/延后")
+                        .font(.system(.body, design: .rounded))
+
+                    Spacer()
+
+                    Menu {
+                        ForEach([5, 10, 15, 30, 60], id: \.self) { minutes in
+                            Button {
+                                draft.fixedTimeToleranceMinutes = minutes
+                            } label: {
+                                HStack {
+                                    Text(L10n.format("%d 分钟", minutes))
+                                    if draft.fixedTimeToleranceMinutes == minutes {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(L10n.format("%d 分钟", draft.fixedTimeToleranceMinutes))
+                                .monospacedDigit()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.violet)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 38)
+                        .background(PlanetTheme.mutedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+                .frame(minHeight: 44)
+
+                Toggle("到点提醒", isOn: $draft.reminderEnabled)
+                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .tint(PlanetTheme.mint)
+            } else {
             Toggle(isOn: $draft.reminderEnabled) {
                 Text("打卡提醒")
                     .font(.system(.body, design: .rounded, weight: .medium))
@@ -236,6 +294,7 @@ struct HabitEditorView: View {
                 DatePicker("提醒时间", selection: $reminderTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.compact)
                     .font(.system(.body, design: .rounded))
+            }
             }
 
             Divider()
@@ -251,6 +310,9 @@ struct HabitEditorView: View {
                 }
             }
             .tint(PlanetTheme.mint)
+            .onChange(of: draft.autoCheckInEnabled) { enabled in
+                if enabled { draft.fixedTimeEnabled = false }
+            }
         }
         .padding(18)
         .softCard(fill: PlanetTheme.surface.opacity(0.97), shadowOpacity: 0.08)
@@ -290,7 +352,19 @@ struct HabitEditorView: View {
         }
         value.startDate = scheduleType == .specificDates ? nil : (hasStartDate ? startDate : nil)
         value.endDate = scheduleType == .specificDates ? nil : (hasEndDate ? endDate : nil)
-        if value.reminderEnabled {
+        if value.fixedTimeEnabled {
+            let components = Calendar.current.dateComponents([.hour, .minute], from: fixedTime)
+            value.fixedTimeHour = components.hour
+            value.fixedTimeMinute = components.minute
+            value.autoCheckInEnabled = false
+            if value.reminderEnabled {
+                value.reminderHour = components.hour
+                value.reminderMinute = components.minute
+            } else {
+                value.reminderHour = nil
+                value.reminderMinute = nil
+            }
+        } else if value.reminderEnabled {
             let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
             value.reminderHour = components.hour
             value.reminderMinute = components.minute

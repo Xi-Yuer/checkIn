@@ -314,10 +314,24 @@ private struct FocusedHabitWidgetView: View {
             if !isScheduled {
                 statusButton("今天休息", background: Color.secondary.opacity(0.18), foreground: .secondary)
             } else if isComplete {
-                statusButton("今天完成啦", background: CheckInWidgetPalette.mint, foreground: .white)
+                statusButton(
+                    task.fixedTimeEnabled && !task.isPunctualComplete ? "已完成 · 未准时" : "今天完成啦",
+                    background: CheckInWidgetPalette.mint,
+                    foreground: .white
+                )
+            } else if !task.canCheckIn(at: entry.date), let window = task.fixedTimeWindow(on: entry.date) {
+                statusButton(
+                    "\(window.start.formatted(date: .omitted, time: .shortened)) 后可打卡",
+                    background: Color.secondary.opacity(0.18),
+                    foreground: .secondary
+                )
             } else if #available(iOSApplicationExtension 17.0, *) {
                 Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
-                    statusButton("打卡 +1", background: CheckInWidgetPalette.button, foreground: .white)
+                    statusButton(
+                        task.fixedTimeWindow(on: entry.date).map { entry.date > $0.end } == true ? "补打 +1" : "打卡 +1",
+                        background: CheckInWidgetPalette.button,
+                        foreground: .white
+                    )
                 }
                 .buttonStyle(.plain)
             } else {
@@ -366,11 +380,11 @@ private struct FocusedHabitWidgetView: View {
     }
 
     private func statusButton(
-        _ title: LocalizedStringKey,
+        _ title: String,
         background: Color,
         foreground: Color
     ) -> some View {
-        Text(title)
+        Text(LocalizedStringKey(title))
             .font(.system(size: 14, weight: .bold, design: .rounded))
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
@@ -402,6 +416,7 @@ struct RecordFocusedCheckInIntent: AppIntent {
               let task = snapshot.tasks.first(where: { $0.id == id }),
               !task.isPaused,
               task.schedule.isScheduled(on: Date()),
+              task.canCheckIn(at: Date()),
               task.count(on: Date(), snapshotDayKey: snapshot.dayKey) < task.dailyGoal else {
             return .result()
         }
@@ -503,10 +518,25 @@ private struct MediumCheckInWidget: View {
                 Spacer(minLength: 0)
 
                 if isComplete {
-                    mediumActionButton("今日已完成", systemImage: "checkmark", background: CheckInWidgetPalette.mint)
+                    mediumActionButton(
+                        task.fixedTimeEnabled && !task.isPunctualComplete ? "已完成 · 未准时" : "今日已完成",
+                        systemImage: "checkmark",
+                        background: CheckInWidgetPalette.mint
+                    )
+                } else if !task.canCheckIn(at: date), let window = task.fixedTimeWindow(on: date) {
+                    Text("\(window.start.formatted(date: .omitted, time: .shortened)) 后可打卡")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(Capsule())
                 } else if #available(iOSApplicationExtension 17.0, *) {
                     Button(intent: RecordFocusedCheckInIntent(taskID: task.id)) {
-                        mediumActionButton("打卡", systemImage: "plus", background: CheckInWidgetPalette.button)
+                        mediumActionButton(
+                            task.fixedTimeWindow(on: date).map { date > $0.end } == true ? "补打" : "打卡",
+                            systemImage: "plus",
+                            background: CheckInWidgetPalette.button
+                        )
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -522,11 +552,11 @@ private struct MediumCheckInWidget: View {
     }
 
     private func mediumActionButton(
-        _ title: LocalizedStringKey,
+        _ title: String,
         systemImage: String,
         background: Color
     ) -> some View {
-        Label(title, systemImage: systemImage)
+        Label(LocalizedStringKey(title), systemImage: systemImage)
             .font(.system(size: 14, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, minHeight: 36)

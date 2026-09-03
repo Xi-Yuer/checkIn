@@ -41,6 +41,15 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
         for (index, task) in limitedTasks.enumerated() {
             let progress = progresses[task.id]
             let plan = scheduleService.plan(for: task, on: date, calendar: calendar)
+            let dayStart = calendar.startOfDay(for: date)
+            let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? date
+            let events = plan.fixedTimeEnabled
+                ? (try? await checkIns.history(taskID: task.id, range: DateInterval(start: dayStart, end: dayEnd))) ?? []
+                : []
+            let window = FixedTimeCheckInService().window(for: task, on: date, calendar: calendar)
+            let punctual = (progress?.isComplete ?? false) && !events.isEmpty && window.map { interval in
+                events.allSatisfy { $0.occurredAt >= interval.start && $0.occurredAt <= interval.end }
+            } == true
             taskSnapshots.append(
                 WidgetTaskSnapshot(
                     id: task.id,
@@ -63,7 +72,12 @@ final class DefaultWidgetSnapshotBuilder: WidgetSnapshotBuilding, @unchecked Sen
                         }
                     ),
                     currentStreak: streaks[task.id] ?? 0,
-                    cumulativeCompletedDays: completedDayKeys[task.id]?.count ?? 0
+                    cumulativeCompletedDays: completedDayKeys[task.id]?.count ?? 0,
+                    fixedTimeEnabled: plan.fixedTimeEnabled,
+                    fixedTimeHour: plan.fixedTimeHour,
+                    fixedTimeMinute: plan.fixedTimeMinute,
+                    fixedTimeToleranceMinutes: plan.fixedTimeToleranceMinutes,
+                    isPunctualComplete: punctual
                 )
             )
         }

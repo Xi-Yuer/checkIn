@@ -28,6 +28,12 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             guard TaskScheduleService().isScheduled(taskDTO, on: date, calendar: calendar) else {
                 throw RepositoryError.notScheduled
             }
+            try FixedTimeCheckInService().validateCheckIn(
+                task: taskDTO,
+                scheduledDay: date,
+                occurredAt: date,
+                calendar: calendar
+            )
 
             let key = DayKey(date: date, calendar: calendar).rawValue
             if let eventID {
@@ -94,6 +100,10 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             latestRequest.fetchLimit = 2
             let remainingEvents = try context.fetch(latestRequest).filter { !$0.isDeleted }
             task.lastCheckInAt = remainingEvents.first?.occurredAt
+            if event.source == CheckInSource.automatic.rawValue {
+                Self.markAutomaticCheckInProcessed(task: task, through: key)
+            }
+            task.updatedAt = date
             try context.save()
 
             let completed = try Self.total(taskID: taskID, dayKey: key, context: context)
@@ -128,6 +138,9 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
             latestRequest.sortDescriptors = [NSSortDescriptor(key: "occurredAt", ascending: false)]
             latestRequest.fetchLimit = 1
             task.lastCheckInAt = try context.fetch(latestRequest).first?.occurredAt
+            if events.contains(where: { $0.source == CheckInSource.automatic.rawValue }) {
+                Self.markAutomaticCheckInProcessed(task: task, through: key)
+            }
             task.updatedAt = Date()
             try context.save()
 
@@ -369,5 +382,16 @@ final class CoreDataCheckInRepository: CheckInRepository, @unchecked Sendable {
         let request = CheckInEntity.fetchRequest()
         request.predicate = NSPredicate(format: "task.id == %@", taskID as CVarArg)
         return try context.fetch(request).compactMap { $0.makeDTO() }
+    }
+
+    /// Undoing a check-in is an explicit choice to leave that day incomplete.
+    /// Advancing the cursor prevents automatic processing from filling it again.
+    private static func markAutomaticCheckInProcessed(task: TaskEntity, through dayKey: String) {
+        guard task.autoCheckInEnabled else { return }
+        if let lastProcessed = task.autoCheckInLastProcessedDayKey,
+           lastProcessed >= dayKey {
+            return
+        }
+        task.autoCheckInLastProcessedDayKey = dayKey
     }
 }

@@ -56,6 +56,7 @@ final class AppStore: ObservableObject {
     private let calendar: Calendar
     private let deepLinkRouter = DeepLinkRouter()
     private let scheduleService = TaskScheduleService()
+    private let fixedTimeService = FixedTimeCheckInService()
 
     var today: Date { dateProvider.now }
 
@@ -215,6 +216,11 @@ final class AppStore: ObservableObject {
         processingHabitIDs.insert(habitID)
         defer { processingHabitIDs.remove(habitID) }
         do {
+            if let habit = habits.first(where: { $0.id == habitID }),
+               habit.fixedTimeEnabled,
+               !calendar.isDate(date, inSameDayAs: today) {
+                throw RepositoryError.notScheduled
+            }
             let progress = try await checkInRepository.checkIn(
                 taskID: habitID,
                 at: date,
@@ -541,7 +547,8 @@ final class AppStore: ObservableObject {
                 consumedIDs.insert(action.id)
             } catch let error as RepositoryError {
                 switch error {
-                case .taskNotFound, .taskPaused, .notScheduled, .targetAlreadyReached, .invalidValue:
+                case .taskNotFound, .taskPaused, .notScheduled, .targetAlreadyReached, .invalidValue,
+                     .checkInWindowNotOpen:
                     consumedIDs.insert(action.id)
                 case .noCheckInToUndo:
                     consumedIDs.insert(action.id)
@@ -558,6 +565,18 @@ final class AppStore: ObservableObject {
 
     private func isScheduledToday(_ habit: TaskDTO) -> Bool {
         scheduleService.isScheduled(habit, on: today, calendar: calendar)
+    }
+
+    func fixedTimeState(for habit: TaskDTO, on date: Date? = nil) -> FixedTimeCheckInState {
+        let day = date ?? today
+        return fixedTimeService.state(
+            for: habit,
+            on: day,
+            now: today,
+            progress: calendar.isDate(day, inSameDayAs: today) ? todayProgress[habit.id] : nil,
+            events: checkIns,
+            calendar: calendar
+        )
     }
 
     private func persistSettings() {

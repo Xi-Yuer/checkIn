@@ -4,6 +4,7 @@ import SwiftUI
 struct TodayHabitRow: View {
     let habit: TaskDTO
     let progress: DailyProgress?
+    let fixedTimeState: FixedTimeCheckInState
     let isProcessing: Bool
     let onCheckIn: () -> Void
 
@@ -53,7 +54,7 @@ struct TodayHabitRow: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .disabled(isComplete)
+                .disabled(isComplete || !fixedTimeState.allowsCheckIn)
                 .accessibilityLabel(checkAccessibilityLabel)
             }
         }
@@ -68,6 +69,13 @@ struct TodayHabitRow: View {
     }
 
     private var checkAccessibilityLabel: String {
+        switch fixedTimeState {
+        case .notOpen(let date): return L10n.format("%@ 后可打卡", time(date))
+        case .missed: return L10n.text("已错过 · 可补打")
+        case .lateComplete: return L10n.text("已完成 · 未准时")
+        case .punctualComplete: return L10n.text("已准时完成")
+        default: break
+        }
         if isComplete {
             return L10n.text("今日已完成")
         }
@@ -78,10 +86,28 @@ struct TodayHabitRow: View {
     }
 
     private var subtitle: String {
+        switch fixedTimeState {
+        case .notOpen(let opensAt):
+            return L10n.format("%@ 后可打卡", time(opensAt))
+        case .open(let closesAt):
+            return L10n.format("请在 %@ 前完成", time(closesAt))
+        case .missed:
+            return L10n.text("已错过 · 可补打")
+        case .lateComplete:
+            return L10n.text("已完成 · 未准时")
+        case .punctualComplete:
+            return L10n.text("已准时完成")
+        case .unrestricted:
+            break
+        }
         if target > 1 {
             return "\(habit.scheduleAndReminderTitle) · \(completed)/\(target)"
         }
         return habit.scheduleAndReminderTitle
+    }
+
+    private func time(_ date: Date) -> String {
+        date.formatted(date: .omitted, time: .shortened)
     }
 }
 

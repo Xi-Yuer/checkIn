@@ -6,6 +6,10 @@ struct TodayView: View {
 
     @Environment(\.locale) private var locale
 
+    private var visibleUpcomingItems: [UpcomingSpecificDateItem] {
+        store.upcomingSpecificDateItems.filter { !$0.habit.fixedTimeEnabled }
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -131,7 +135,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var todayContent: some View {
-        if store.todayHabits.isEmpty && store.upcomingSpecificDateItems.isEmpty {
+        if store.todayHabits.isEmpty && visibleUpcomingItems.isEmpty {
             EmptyStateView(
                 mood: .ready,
                 title: "今天还没有计划",
@@ -145,21 +149,24 @@ struct TodayView: View {
         } else {
             LazyVStack(spacing: 0) {
                 ForEach(Array(store.todayHabits.enumerated()), id: \.element.id) { index, habit in
-                    TodayHabitRow(
-                        habit: habit,
-                        progress: store.todayProgress[habit.id],
-                        isProcessing: store.processingHabitIDs.contains(habit.id),
-                        onCheckIn: { Task { await store.checkIn(habitID: habit.id) } }
-                    )
+                    TimelineView(.periodic(from: .now, by: 60)) { _ in
+                        TodayHabitRow(
+                            habit: habit,
+                            progress: store.todayProgress[habit.id],
+                            fixedTimeState: store.fixedTimeState(for: habit),
+                            isProcessing: store.processingHabitIDs.contains(habit.id),
+                            onCheckIn: { Task { await store.checkIn(habitID: habit.id) } }
+                        )
+                    }
 
-                    if index < store.todayHabits.count - 1 || !store.upcomingSpecificDateItems.isEmpty {
+                    if index < store.todayHabits.count - 1 || !visibleUpcomingItems.isEmpty {
                         Divider()
                             .overlay(PlanetTheme.separator.opacity(0.36))
                             .padding(.leading, 102)
                     }
                 }
 
-                ForEach(Array(store.upcomingSpecificDateItems.enumerated()), id: \.element.id) { index, item in
+                ForEach(Array(visibleUpcomingItems.enumerated()), id: \.element.id) { index, item in
                     UpcomingSpecificDateRow(
                         item: item,
                         isProcessing: store.processingHabitIDs.contains(item.habit.id),
@@ -171,7 +178,7 @@ struct TodayView: View {
                         }
                     )
 
-                    if index < store.upcomingSpecificDateItems.count - 1 {
+                    if index < visibleUpcomingItems.count - 1 {
                         Divider()
                             .overlay(PlanetTheme.separator.opacity(0.36))
                             .padding(.leading, 102)

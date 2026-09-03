@@ -184,6 +184,10 @@ struct HabitDetailView: View {
                 infoRow(symbol: "calendar", title: "重复计划", value: habit.schedule.compactTitle)
                 infoDivider
                 infoRow(symbol: "flag.fill", title: "每日目标", value: L10n.format("%d 次", habit.dailyTarget))
+                if habit.fixedTimeEnabled {
+                    infoDivider
+                    infoRow(symbol: "clock.badge.checkmark", title: "固定时间", value: fixedTimeText(habit))
+                }
                 infoDivider
                 infoRow(symbol: "wand.and.stars", title: "自动打卡", value: automaticCheckInText(habit))
                 infoDivider
@@ -289,7 +293,11 @@ struct HabitDetailView: View {
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            .disabled(progress?.isComplete == true || store.processingHabitIDs.contains(habit.id))
+            .disabled(
+                progress?.isComplete == true ||
+                store.processingHabitIDs.contains(habit.id) ||
+                !store.fixedTimeState(for: habit).allowsCheckIn
+            )
 
             if (progress?.completed ?? 0) > 0 {
                 Button {
@@ -501,9 +509,30 @@ struct HabitDetailView: View {
         let completed = progress?.completed ?? 0
         let target = progress?.target ?? scheduleService.dailyTarget(for: habit, on: store.today, calendar: calendar)
         if progress?.isComplete == true {
+            if case .lateComplete = store.fixedTimeState(for: habit) {
+                return L10n.text("已完成 · 未准时")
+            }
+            if case .punctualComplete = store.fixedTimeState(for: habit) {
+                return L10n.text("已准时完成")
+            }
             return L10n.format("已完成 %d/%d，星光点亮了", completed, target)
         }
+        switch store.fixedTimeState(for: habit) {
+        case .notOpen(let date): return L10n.format("%@ 后可打卡", formattedTime(date))
+        case .open(let date): return L10n.format("请在 %@ 前完成", formattedTime(date))
+        case .missed: return L10n.text("已错过 · 可补打")
+        default: break
+        }
         return L10n.format("已完成 %d/%d，还差 %d 次", completed, target, max(0, target - completed))
+    }
+
+    private func fixedTimeText(_ habit: TaskDTO) -> String {
+        guard let hour = habit.fixedTimeHour, let minute = habit.fixedTimeMinute else { return L10n.text("未开启") }
+        return L10n.format("%02d:%02d · 前后 %d 分钟", hour, minute, habit.fixedTimeToleranceMinutes)
+    }
+
+    private func formattedTime(_ date: Date) -> String {
+        date.formatted(date: .omitted, time: .shortened)
     }
 
     private func prepareDeletion() {

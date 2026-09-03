@@ -19,6 +19,10 @@ final class TaskEntity: NSManagedObject {
     @NSManaged var autoCheckInEnabled: Bool
     @NSManaged var autoCheckInStartDayKey: String?
     @NSManaged var autoCheckInLastProcessedDayKey: String?
+    @NSManaged var fixedTimeEnabled: Bool
+    @NSManaged var fixedTimeHour: NSNumber?
+    @NSManaged var fixedTimeMinute: NSNumber?
+    @NSManaged var fixedTimeToleranceMinutes: Int16
     @NSManaged var reminderEnabled: Bool
     @NSManaged var reminderHour: NSNumber?
     @NSManaged var reminderMinute: NSNumber?
@@ -59,6 +63,10 @@ extension TaskEntity {
             autoCheckInEnabled: autoCheckInEnabled,
             autoCheckInStartDayKey: autoCheckInStartDayKey,
             autoCheckInLastProcessedDayKey: autoCheckInLastProcessedDayKey,
+            fixedTimeEnabled: fixedTimeEnabled,
+            fixedTimeHour: fixedTimeHour?.intValue,
+            fixedTimeMinute: fixedTimeMinute?.intValue,
+            fixedTimeToleranceMinutes: max(5, Int(fixedTimeToleranceMinutes)),
             reminderEnabled: reminderEnabled,
             reminderHour: reminderHour?.intValue,
             reminderMinute: reminderMinute?.intValue,
@@ -83,6 +91,25 @@ extension TaskEntity {
         let effectiveDayKey = DayKey(date: now, calendar: calendar).rawValue
         let wasAutoCheckInEnabled = autoCheckInEnabled
         var revisions = decoded([TaskPlanRevision].self, from: planRevisionsData) ?? []
+        let activeRevision = revisions
+            .filter { $0.effectiveDayKey <= effectiveDayKey }
+            .max { $0.effectiveDayKey < $1.effectiveDayKey }
+        let previousFixedTimeEnabled = activeRevision?.fixedTimeEnabled ?? fixedTimeEnabled
+        let previousFixedTimeHour = activeRevision?.fixedTimeHour ?? fixedTimeHour?.intValue
+        let previousFixedTimeMinute = activeRevision?.fixedTimeMinute ?? fixedTimeMinute?.intValue
+        let previousFixedTimeTolerance = activeRevision?.fixedTimeToleranceMinutes
+            ?? max(5, Int(fixedTimeToleranceMinutes))
+        let newFixedTimeStartsToday: Bool = {
+            guard draft.fixedTimeEnabled,
+                  let hour = draft.fixedTimeHour,
+                  let minute = draft.fixedTimeMinute else { return false }
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
+            components.hour = hour
+            components.minute = minute
+            components.second = 0
+            guard let target = calendar.date(from: components) else { return false }
+            return now < target
+        }()
         if revisions.isEmpty, !isNew {
             revisions.append(
                 TaskPlanRevision(
@@ -95,7 +122,11 @@ extension TaskEntity {
                     ),
                     dailyTarget: max(1, Int(dailyTarget)),
                     startDayKey: startDate.map { DayKey(date: $0, calendar: calendar).rawValue },
-                    endDayKey: endDate.map { DayKey(date: $0, calendar: calendar).rawValue }
+                    endDayKey: endDate.map { DayKey(date: $0, calendar: calendar).rawValue },
+                    fixedTimeEnabled: fixedTimeEnabled,
+                    fixedTimeHour: fixedTimeHour?.intValue,
+                    fixedTimeMinute: fixedTimeMinute?.intValue,
+                    fixedTimeToleranceMinutes: max(5, Int(fixedTimeToleranceMinutes))
                 )
             )
         }
@@ -113,13 +144,18 @@ extension TaskEntity {
         dailyTarget = Int16(draft.dailyTarget)
         autoCheckInEnabled = draft.autoCheckInEnabled
         if draft.autoCheckInEnabled && !wasAutoCheckInEnabled {
-            let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
-            autoCheckInStartDayKey = DayKey(date: tomorrow, calendar: calendar).rawValue
-            autoCheckInLastProcessedDayKey = effectiveDayKey
+            let today = calendar.startOfDay(for: now)
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+            autoCheckInStartDayKey = effectiveDayKey
+            autoCheckInLastProcessedDayKey = DayKey(date: yesterday, calendar: calendar).rawValue
         } else if !draft.autoCheckInEnabled {
             autoCheckInStartDayKey = nil
             autoCheckInLastProcessedDayKey = nil
         }
+        fixedTimeEnabled = draft.fixedTimeEnabled
+        fixedTimeHour = draft.fixedTimeHour.map(NSNumber.init(value:))
+        fixedTimeMinute = draft.fixedTimeMinute.map(NSNumber.init(value:))
+        fixedTimeToleranceMinutes = Int16(draft.fixedTimeToleranceMinutes)
         reminderEnabled = draft.reminderEnabled
         reminderHour = draft.reminderHour.map(NSNumber.init(value:))
         reminderMinute = draft.reminderMinute.map(NSNumber.init(value:))
@@ -127,14 +163,35 @@ extension TaskEntity {
         endDate = draft.endDate
         updatedAt = now
 
-        let revision = TaskPlanRevision(
+        let immediateRevision = TaskPlanRevision(
             effectiveDayKey: effectiveDayKey,
             schedule: draft.schedule,
             dailyTarget: draft.dailyTarget,
             startDayKey: draft.startDate.map { DayKey(date: $0, calendar: calendar).rawValue },
-            endDayKey: draft.endDate.map { DayKey(date: $0, calendar: calendar).rawValue }
+            endDayKey: draft.endDate.map { DayKey(date: $0, calendar: calendar).rawValue },
+            fixedTimeEnabled: newFixedTimeStartsToday ? draft.fixedTimeEnabled : (isNew ? false : previousFixedTimeEnabled),
+            fixedTimeHour: newFixedTimeStartsToday ? draft.fixedTimeHour : (isNew ? nil : previousFixedTimeHour),
+            fixedTimeMinute: newFixedTimeStartsToday ? draft.fixedTimeMinute : (isNew ? nil : previousFixedTimeMinute),
+            fixedTimeToleranceMinutes: newFixedTimeStartsToday
+                ? draft.fixedTimeToleranceMinutes
+                : (isNew ? 15 : previousFixedTimeTolerance)
         )
         revisions.removeAll { $0.effectiveDayKey == effectiveDayKey }
+        revisions.append(immediateRevision)
+
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        let revision = TaskPlanRevision(
+            effectiveDayKey: DayKey(date: tomorrow, calendar: calendar).rawValue,
+            schedule: draft.schedule,
+            dailyTarget: draft.dailyTarget,
+            startDayKey: draft.startDate.map { DayKey(date: $0, calendar: calendar).rawValue },
+            endDayKey: draft.endDate.map { DayKey(date: $0, calendar: calendar).rawValue },
+            fixedTimeEnabled: draft.fixedTimeEnabled,
+            fixedTimeHour: draft.fixedTimeHour,
+            fixedTimeMinute: draft.fixedTimeMinute,
+            fixedTimeToleranceMinutes: draft.fixedTimeToleranceMinutes
+        )
+        revisions.removeAll { $0.effectiveDayKey == revision.effectiveDayKey }
         revisions.append(revision)
         revisions.sort { $0.effectiveDayKey < $1.effectiveDayKey }
         planRevisionsData = encoded(revisions)
