@@ -86,24 +86,7 @@ struct TodayHabitRow: View {
     }
 
     private var subtitle: String {
-        switch fixedTimeState {
-        case .notOpen(let opensAt):
-            return L10n.format("%@ 后可打卡", time(opensAt))
-        case .open(let closesAt):
-            return L10n.format("请在 %@ 前完成", time(closesAt))
-        case .missed:
-            return L10n.text("已错过 · 可补打")
-        case .lateComplete:
-            return L10n.text("已完成 · 未准时")
-        case .punctualComplete:
-            return L10n.text("已准时完成")
-        case .unrestricted:
-            break
-        }
-        if target > 1 {
-            return "\(habit.scheduleAndReminderTitle) · \(completed)/\(target)"
-        }
-        return habit.scheduleAndReminderTitle
+        habit.scheduleAndCheckInTimeTitle
     }
 
     private func time(_ date: Date) -> String {
@@ -444,6 +427,19 @@ extension TaskDTO {
             return schedule.compactTitle
         }
         return "\(schedule.compactTitle) \(String(format: "%02d:%02d", reminderHour, reminderMinute))"
+    }
+
+    var scheduleAndCheckInTimeTitle: String {
+        guard fixedTimeEnabled, let fixedTimeHour, let fixedTimeMinute else {
+            return scheduleAndReminderTitle
+        }
+        return L10n.format(
+            "%@ · %02d:%02d · 前后 %d 分钟",
+            schedule.compactTitle,
+            fixedTimeHour,
+            fixedTimeMinute,
+            fixedTimeToleranceMinutes
+        )
     }
 }
 

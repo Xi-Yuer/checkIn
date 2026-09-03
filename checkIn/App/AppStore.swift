@@ -233,6 +233,9 @@ final class AppStore: ObservableObject {
             if progress.isComplete && calendar.isDate(date, inSameDayAs: today) {
                 celebrationHabit = habits.first { $0.id == habitID }
             }
+            if calendar.isDate(date, inSameDayAs: today) {
+                try await reloadTodayFixedTimeCheckIns(habitIDs: [habitID])
+            }
             if reviewPromptPolicy.recordSuccessfulManualCheckIn(
                 completedDailyGoal: progress.isComplete,
                 habitCreatedDates: habits.map(\.createdAt),
@@ -263,6 +266,7 @@ final class AppStore: ObservableObject {
         do {
             let progress = try await checkInRepository.undoLastCheckIn(taskID: habitID, on: today)
             todayProgress[habitID] = progress
+            try await reloadTodayFixedTimeCheckIns(habitIDs: [habitID])
             celebrationHabit = nil
             await refreshStreak(for: habitID)
             try await reloadDerivedState()
@@ -285,6 +289,7 @@ final class AppStore: ObservableObject {
             checkIns.removeAll { $0.taskID == habitID && $0.dayKey == dayKey }
             if calendar.isDate(date, inSameDayAs: today) {
                 todayProgress[habitID] = progress
+                try await reloadTodayFixedTimeCheckIns(habitIDs: [habitID])
             }
             celebrationHabit = nil
             await refreshStreak(for: habitID)
@@ -465,6 +470,7 @@ final class AppStore: ObservableObject {
     private func reloadCoreState() async throws {
         habits = try await tasks.fetch(TaskQuery(filter: .all, sort: habitSort, date: today))
         todayProgress = try await checkInRepository.progresses(taskIDs: habits.map(\.id), on: today)
+        try await reloadTodayFixedTimeCheckIns()
         await reloadHabitMetrics()
         try await reloadDerivedState()
         await reloadUpcomingSpecificDates()
@@ -508,6 +514,23 @@ final class AppStore: ObservableObject {
             anchor: statisticsAnchor,
             now: today
         )
+    }
+
+    private func reloadTodayFixedTimeCheckIns(habitIDs: Set<UUID>? = nil) async throws {
+        let ids = habitIDs ?? Set(habits.filter(\.fixedTimeEnabled).map(\.id))
+        guard !ids.isEmpty else { return }
+        let dayStart = calendar.startOfDay(for: today)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? today
+        let dayKey = DayKey(date: today, calendar: calendar).rawValue
+        var freshEvents: [CheckInDTO] = []
+        for id in ids {
+            freshEvents += try await checkInRepository.history(
+                taskID: id,
+                range: DateInterval(start: dayStart, end: dayEnd)
+            )
+        }
+        checkIns.removeAll { ids.contains($0.taskID) && $0.dayKey == dayKey }
+        checkIns.append(contentsOf: freshEvents)
     }
 
     private func requestNotificationPermissionIfNeeded() async throws {

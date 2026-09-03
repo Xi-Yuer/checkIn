@@ -314,6 +314,7 @@
 "已准时完成" = "Completed on time";
 "固定时间" = "Timed Check-in";
 "%02d:%02d · 前后 %d 分钟" = "%02d:%02d · ±%d min";
+"%@ · %02d:%02d · 前后 %d 分钟" = "%@ · %02d:%02d · ±%d min";
 "请选择有效固定时间" = "Choose a valid check-in time";
 "请选择有效时间范围" = "Choose a valid time window";
 "还没到打卡时间" = "The check-in window has not opened yet";
