@@ -1030,15 +1030,11 @@ private struct GeneralSettingsView: View {
                     }
                     .frame(minHeight: 62)
 
-                    Divider().overlay(PlanetTheme.separator.opacity(0.6))
-
                     Toggle(isOn: hapticsBinding) {
                         settingsLabel("触感反馈", caption: "让每次打卡更有实感", symbol: "hand.tap.fill")
                     }
                     .tint(PlanetTheme.violet)
                     .frame(minHeight: 62)
-
-                    Divider().overlay(PlanetTheme.separator.opacity(0.6))
 
                     Toggle(isOn: notificationsBinding) {
                         Label {

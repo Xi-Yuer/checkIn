@@ -189,7 +189,11 @@ struct HabitDetailView: View {
                     infoRow(symbol: "clock.badge.checkmark", title: "固定时间", value: fixedTimeText(habit))
                 }
                 infoDivider
-                infoRow(symbol: "wand.and.stars", title: "自动打卡", value: automaticCheckInText(habit))
+                infoRow(
+                    symbol: "wand.and.stars",
+                    title: "自动打卡",
+                    value: L10n.text(habit.autoCheckInEnabled ? "已开启" : "未开启")
+                )
                 infoDivider
                 infoRow(symbol: "bell.fill", title: "打卡提醒", value: reminderText(habit))
                 if let startDate = habit.startDate {
@@ -420,15 +424,6 @@ struct HabitDetailView: View {
             return L10n.text("未开启")
         }
         return String(format: "%02d:%02d", hour, minute)
-    }
-
-    private func automaticCheckInText(_ habit: TaskDTO) -> String {
-        guard habit.autoCheckInEnabled else { return L10n.text("未开启") }
-        guard let key = habit.autoCheckInStartDayKey,
-              let date = DayKey(rawValue: key).date(calendar: calendar) else {
-            return L10n.text("已开启")
-        }
-        return L10n.format("已开启（%@起）", formattedDate(date))
     }
 
     private func historyDialogMessage(on date: Date) -> String {

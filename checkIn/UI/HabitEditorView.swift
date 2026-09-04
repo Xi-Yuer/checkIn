@@ -16,6 +16,7 @@ struct HabitEditorView: View {
     @State private var selectedCalendarDates: Set<DateComponents>
     @State private var hasStartDate: Bool
     @State private var hasEndDate: Bool
+    @State private var isShowingMoreSettings: Bool
     @State private var startDate: Date
     @State private var endDate: Date
     @State private var reminderTime: Date
@@ -38,6 +39,7 @@ struct HabitEditorView: View {
         }))
         _hasStartDate = State(initialValue: initialDraft.startDate != nil)
         _hasEndDate = State(initialValue: initialDraft.endDate != nil)
+        _isShowingMoreSettings = State(initialValue: initialDraft.startDate != nil || initialDraft.endDate != nil || initialDraft.fixedTimeEnabled)
         let now = Date()
         _startDate = State(initialValue: initialDraft.startDate ?? now)
         _endDate = State(initialValue: initialDraft.endDate ?? Calendar.current.date(byAdding: .month, value: 1, to: now) ?? now)
@@ -167,7 +169,7 @@ struct HabitEditorView: View {
     }
 
     private var scheduleSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("什么时候打卡")
                     .font(.system(.title3, design: .rounded, weight: .heavy))
@@ -195,7 +197,7 @@ struct HabitEditorView: View {
                         .font(.caption.bold())
                         .foregroundStyle(PlanetTheme.separator)
                 }
-                .frame(minHeight: 44)
+                .frame(minHeight: 40)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -211,107 +213,130 @@ struct HabitEditorView: View {
                 }
             }
 
-            if scheduleType != .specificDates {
-            Toggle("设置开始日期", isOn: $hasStartDate)
-                .font(.system(.body, design: .rounded, weight: .medium))
-                .tint(PlanetTheme.lavender)
-            if hasStartDate {
-                DatePicker("开始", selection: $startDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .font(.system(.body, design: .rounded))
-            }
-            Toggle("设置结束日期", isOn: $hasEndDate)
-                .font(.system(.body, design: .rounded, weight: .medium))
-                .tint(PlanetTheme.lavender)
-            if hasEndDate {
-                DatePicker("结束", selection: $endDate, in: startDate..., displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .font(.system(.body, design: .rounded))
-            }
-            }
-
-            Toggle(isOn: $draft.fixedTimeEnabled) {
-                Text("固定时间打卡")
-                    .font(.system(.body, design: .rounded, weight: .medium))
-            }
-            .tint(PlanetTheme.mint)
-            .onChange(of: draft.fixedTimeEnabled) { enabled in
-                if enabled { draft.autoCheckInEnabled = false }
-            }
-
-            if draft.fixedTimeEnabled {
-                DatePicker("打卡时间", selection: $fixedTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.compact)
-                    .font(.system(.body, design: .rounded))
-
-                HStack(spacing: 12) {
-                    Text("允许提前/延后")
-                        .font(.system(.body, design: .rounded))
-
-                    Spacer()
-
-                    Menu {
-                        ForEach([5, 10, 15, 30, 60], id: \.self) { minutes in
-                            Button {
-                                draft.fixedTimeToleranceMinutes = minutes
-                            } label: {
-                                HStack {
-                                    Text(L10n.format("%d 分钟", minutes))
-                                    if draft.fixedTimeToleranceMinutes == minutes {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(L10n.format("%d 分钟", draft.fixedTimeToleranceMinutes))
-                                .monospacedDigit()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption2.weight(.semibold))
-                        }
+            if !draft.fixedTimeEnabled {
+                Toggle(isOn: $draft.reminderEnabled) {
+                    Text("打卡提醒")
                         .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundStyle(PlanetTheme.violet)
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 38)
-                        .background(PlanetTheme.mutedSurface)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
                 }
-                .frame(minHeight: 44)
+                .tint(PlanetTheme.mint)
 
-                Toggle("到点提醒", isOn: $draft.reminderEnabled)
-                    .font(.system(.body, design: .rounded, weight: .medium))
-                    .tint(PlanetTheme.mint)
-            } else {
-            Toggle(isOn: $draft.reminderEnabled) {
-                Text("打卡提醒")
+                if draft.reminderEnabled {
+                    DatePicker("提醒时间", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.compact)
+                        .font(.system(.body, design: .rounded))
+                }
+            }
+
+            Toggle(isOn: $draft.autoCheckInEnabled) {
+                Text("自动打卡")
                     .font(.system(.body, design: .rounded, weight: .medium))
             }
             .tint(PlanetTheme.mint)
-
-            if draft.reminderEnabled {
-                DatePicker("提醒时间", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.compact)
-                    .font(.system(.body, design: .rounded))
-            }
+            .onChange(of: draft.autoCheckInEnabled) { enabled in
+                if enabled { draft.fixedTimeEnabled = false }
             }
 
             Divider()
                 .overlay(PlanetTheme.separator.opacity(0.48))
 
-            Toggle(isOn: $draft.autoCheckInEnabled) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("自动打卡")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                    Text("开启后次日生效，计划日将自动完成打卡。")
-                        .font(.system(.caption, design: .rounded, weight: .medium))
-                        .foregroundStyle(PlanetTheme.secondaryText)
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    isShowingMoreSettings.toggle()
                 }
+            } label: {
+                HStack(spacing: 12) {
+                    Text("更多设置")
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(PlanetTheme.primaryText)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption.bold())
+                        .foregroundStyle(PlanetTheme.secondaryText)
+                        .rotationEffect(.degrees(isShowingMoreSettings ? 180 : 0))
+                }
+                .frame(minHeight: 40)
+                .contentShape(Rectangle())
             }
-            .tint(PlanetTheme.mint)
-            .onChange(of: draft.autoCheckInEnabled) { enabled in
-                if enabled { draft.fixedTimeEnabled = false }
+            .buttonStyle(.plain)
+            .accessibilityValue(isShowingMoreSettings ? Text("已展开") : Text("已收起"))
+
+            if isShowingMoreSettings {
+                VStack(spacing: 10) {
+                    if scheduleType != .specificDates {
+                        Toggle("设置开始日期", isOn: $hasStartDate)
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                            .tint(PlanetTheme.lavender)
+                        if hasStartDate {
+                            DatePicker("开始", selection: $startDate, displayedComponents: .date)
+                                .datePickerStyle(.compact)
+                                .font(.system(.body, design: .rounded))
+                        }
+                        Toggle("设置结束日期", isOn: $hasEndDate)
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                            .tint(PlanetTheme.lavender)
+                        if hasEndDate {
+                            DatePicker("结束", selection: $endDate, in: startDate..., displayedComponents: .date)
+                                .datePickerStyle(.compact)
+                                .font(.system(.body, design: .rounded))
+                        }
+                    }
+
+                    Toggle(isOn: $draft.fixedTimeEnabled) {
+                        Text("固定时间打卡")
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                    }
+                    .tint(PlanetTheme.mint)
+                    .onChange(of: draft.fixedTimeEnabled) { enabled in
+                        if enabled { draft.autoCheckInEnabled = false }
+                    }
+
+                    if draft.fixedTimeEnabled {
+                        DatePicker("打卡时间", selection: $fixedTime, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.compact)
+                            .font(.system(.body, design: .rounded))
+
+                        HStack(spacing: 12) {
+                            Text("允许提前/延后")
+                                .font(.system(.body, design: .rounded))
+
+                            Spacer()
+
+                            Menu {
+                                ForEach([5, 10, 15, 30, 60], id: \.self) { minutes in
+                                    Button {
+                                        draft.fixedTimeToleranceMinutes = minutes
+                                    } label: {
+                                        HStack {
+                                            Text(L10n.format("%d 分钟", minutes))
+                                            if draft.fixedTimeToleranceMinutes == minutes {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Text(L10n.format("%d 分钟", draft.fixedTimeToleranceMinutes))
+                                        .monospacedDigit()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption2.weight(.semibold))
+                                }
+                                .font(.system(.body, design: .rounded, weight: .medium))
+                                .foregroundStyle(PlanetTheme.violet)
+                                .padding(.horizontal, 12)
+                                .frame(minHeight: 38)
+                                .background(PlanetTheme.mutedSurface)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                        }
+                        .frame(minHeight: 40)
+
+                        Toggle("到点提醒", isOn: $draft.reminderEnabled)
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                            .tint(PlanetTheme.mint)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(18)

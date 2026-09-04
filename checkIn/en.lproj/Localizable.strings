@@ -228,6 +228,9 @@
 "请选择有效颜色" = "Choose a valid color.";
 "自定义频率至少选择一天" = "Choose at least one day for a custom schedule.";
 "结束日期不能早于开始日期" = "The end date cannot be before the start date.";
+"更多设置" = "More Settings";
+"已展开" = "Expanded";
+"已收起" = "Collapsed";
 "请选择有效提醒时间" = "Choose a valid reminder time.";
 "这个习惯已不存在" = "This habit no longer exists.";
 "已暂停的习惯不能打卡" = "Resume this habit before checking in.";
@@ -236,9 +239,6 @@
 "今天没有可撤销的打卡" = "There are no check-ins to undo today.";
 "打卡数值必须大于零" = "The check-in value must be greater than zero.";
 "自动打卡" = "Automatic Check-in";
-"开启后次日生效，计划日将自动完成打卡。" = "Takes effect tomorrow and automatically completes check-ins on scheduled days.";
-"已开启" = "On";
-"已开启（%@起）" = "On (from %@)";
 "撤销当天打卡" = "Undo This Day";
 "撤销当天全部打卡" = "Undo All Check-ins for This Day";
 "点按可撤销当天打卡" = "Tap to undo this day's check-ins";
